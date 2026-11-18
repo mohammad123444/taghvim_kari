@@ -1,5 +1,6 @@
 package ir.taghvimkari.app.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,11 +33,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import ir.taghvimkari.app.domain.Category
 import ir.taghvimkari.app.domain.DayStatus
 import ir.taghvimkari.app.domain.Employment
 import ir.taghvimkari.app.domain.JalaliDate
 import ir.taghvimkari.app.domain.Person
+import ir.taghvimkari.app.domain.Shift
 import ir.taghvimkari.app.domain.ShiftEngine
 import ir.taghvimkari.app.domain.toPersian
 import java.time.LocalDate
@@ -129,7 +132,7 @@ private fun DayDetailSheet(date: LocalDate, people: List<Person>, onDismiss: () 
                 )
                 val present = statuses.count { it.second.working }
                 Text(
-                    "کل: ${present.toPersian()} نفر حاضر • ${(statuses.size - present).toPersian()} نفر غایب",
+                    "کل: ${present.toPersian()} نفر حاضر • ${(statuses.size - present).toPersian()} نفر در استراحت",
                     color = Color.Gray,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -160,54 +163,85 @@ private fun DayDetailSheet(date: LocalDate, people: List<Person>, onDismiss: () 
                 if (group.isEmpty()) EmptyMessage("نیروی ${employments[tab].title} ثبت نشده است.")
                 // Administrative and operational staff are shown in separate boxes.
                 Category.entries.forEach { cat ->
-                    CategoryBox(cat, group.filter { it.first.category == cat })
+                    CategoryBox(cat, group.filter { it.first.category == cat }, "${employments[tab].name}-${cat.name}")
                 }
             }
         }
     }
 }
 
+private val WORK_SHIFT_ORDER = listOf(Shift.DAY, Shift.NIGHT, Shift.WORK)
+
+/** Collapsible box for one category (اداری / عملیاتی); closed by default so the sheet stays short. */
 @Composable
-private fun CategoryBox(category: Category, items: List<Pair<Person, DayStatus>>) {
+private fun CategoryBox(category: Category, items: List<Pair<Person, DayStatus>>, stateKey: String) {
+    var expanded by rememberSaveable(stateKey) { mutableStateOf(false) }
     val present = items.filter { it.second.working }
-    val absent = items.filter { !it.second.working }
+    val resting = items
+        .filter { !it.second.working }
+        .sortedWith(compareBy({ it.second.daysToChange }, { it.first.name }))
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xFFEDEBFA)),
         shape = RoundedCornerShape(18.dp)
     ) {
-        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    category.title,
-                    Modifier.weight(1f),
-                    fontWeight = FontWeight.Bold,
-                    color = Navy,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    "${present.size.toPersian()} حاضر از ${items.size.toPersian()}",
-                    color = Purple,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.labelLarge
-                )
+        Column(Modifier.fillMaxWidth()) {
+            Row(
+                Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        category.title,
+                        fontWeight = FontWeight.Bold,
+                        color = Navy,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        "${present.size.toPersian()} حاضر • ${resting.size.toPersian()} استراحت",
+                        color = Purple,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+                Text(if (expanded) "▴" else "▾", color = Navy, fontSize = 22.sp)
             }
-            if (items.isEmpty()) {
-                Text("نیروی ${category.title} ثبت نشده است.", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
-            } else {
-                Section("حاضر (${present.size.toPersian()} نفر)", PresentGreen, present, "کسی حاضر نیست.")
-                Section("غایب (${absent.size.toPersian()} نفر)", AbsentGray, absent, "همه حاضرند.")
+            if (expanded) {
+                Column(
+                    Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (items.isEmpty()) {
+                        Text("نیروی ${category.title} ثبت نشده است.", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                    } else {
+                        Text("حاضر (${present.size.toPersian()} نفر)", fontWeight = FontWeight.Bold, color = PresentGreen, style = MaterialTheme.typography.titleSmall)
+                        if (present.isEmpty()) {
+                            Text("کسی حاضر نیست.", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                        }
+                        // Sorted by shift: روزکار, شب‌کار, کار; leaders first inside each shift.
+                        WORK_SHIFT_ORDER.forEach { sh ->
+                            val group = present
+                                .filter { it.second.shift == sh }
+                                .sortedWith(compareBy({ if (it.first.isLeader) 0 else 1 }, { it.first.name }))
+                            if (group.isNotEmpty()) {
+                                Text(
+                                    "${sh.title} (${group.size.toPersian()})",
+                                    color = Navy,
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                                group.forEach { (p, st) -> StatusRow(p, st, PresentGreen) }
+                            }
+                        }
+                        Text("استراحت (${resting.size.toPersian()} نفر)", fontWeight = FontWeight.Bold, color = AbsentGray, style = MaterialTheme.typography.titleSmall)
+                        if (resting.isEmpty()) {
+                            Text("کسی در استراحت نیست.", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                        }
+                        resting.forEach { (p, st) -> StatusRow(p, st, AbsentGray) }
+                    }
+                }
             }
         }
     }
-}
-
-@Composable
-private fun Section(title: String, color: Color, items: List<Pair<Person, DayStatus>>, emptyText: String) {
-    Text(title, fontWeight = FontWeight.Bold, color = color, style = MaterialTheme.typography.titleSmall)
-    if (items.isEmpty()) {
-        Text(emptyText, color = Color.Gray, style = MaterialTheme.typography.bodySmall)
-    }
-    items.forEach { (p, s) -> StatusRow(p, s, color) }
 }
 
 @Composable
@@ -222,11 +256,6 @@ private fun StatusRow(person: Person, status: DayStatus, color: Color) {
                     color = Navy
                 )
                 Text(line, style = MaterialTheme.typography.bodySmall, color = Color.DarkGray)
-                Text(
-                    "${person.pattern.title} • شروع ${JalaliDate.from(person.startDate).display()}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.Gray
-                )
             }
             Surface(color = color.copy(alpha = .13f), shape = RoundedCornerShape(8.dp)) {
                 Text(

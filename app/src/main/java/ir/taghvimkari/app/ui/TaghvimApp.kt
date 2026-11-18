@@ -12,11 +12,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -49,11 +46,7 @@ fun TaghvimApp(viewModel: PeopleViewModel) {
     Scaffold(
         containerColor = AppBackground,
         topBar = {
-            AppHeader(
-                updatesEnabled = viewModel.updatesEnabled,
-                checking = viewModel.updateUi is UpdateUi.Checking,
-                onCheckUpdate = { viewModel.checkForUpdate(manual = true) }
-            )
+            AppHeader()
         },
         bottomBar = { AppNavigation(selected = page, onSelect = { page = it }) }
     ) { inner ->
@@ -66,7 +59,12 @@ fun TaghvimApp(viewModel: PeopleViewModel) {
                     onEdit = { editing = it },
                     onDelete = { pendingDelete = it }
                 )
-                else -> RangeScreen(viewModel.people)
+                else -> SettingsScreen(
+                    people = viewModel.people,
+                    updatesEnabled = viewModel.updatesEnabled,
+                    checking = viewModel.updateUi is UpdateUi.Checking,
+                    onCheckUpdate = { viewModel.checkForUpdate(manual = true) }
+                )
             }
         }
     }
@@ -109,7 +107,7 @@ fun TaghvimApp(viewModel: PeopleViewModel) {
 }
 
 @Composable
-private fun AppHeader(updatesEnabled: Boolean, checking: Boolean, onCheckUpdate: () -> Unit) {
+private fun AppHeader() {
     Row(
         Modifier
             .fillMaxWidth()
@@ -125,15 +123,6 @@ private fun AppHeader(updatesEnabled: Boolean, checking: Boolean, onCheckUpdate:
                 color = Color(0xFFDAD9FF),
                 style = MaterialTheme.typography.bodySmall
             )
-        }
-        if (updatesEnabled) {
-            if (checking) {
-                CircularProgressIndicator(Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
-            } else {
-                IconButton(onClick = onCheckUpdate) {
-                    Icon(Icons.Default.Refresh, contentDescription = "بررسی بروزرسانی", tint = Color.White)
-                }
-            }
         }
         Icon(Icons.Default.DateRange, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
     }
@@ -152,7 +141,7 @@ private fun AppNavigation(selected: Int, onSelect: (Int) -> Unit) {
         )
         NavigationBarItem(
             selected = selected == 2, onClick = { onSelect(2) },
-            icon = { Icon(Icons.Default.Search, contentDescription = null) }, label = { Text("بازه زمانی") }
+            icon = { Icon(Icons.Default.Settings, contentDescription = null) }, label = { Text("تنظیمات") }
         )
     }
 }
