@@ -57,8 +57,7 @@ fun TaghvimApp(viewModel: PeopleViewModel) {
                 1 -> PeopleScreen(
                     people = viewModel.people,
                     onAdd = { showAdd = true },
-                    onEdit = { editing = it },
-                    onDelete = { pendingDelete = it }
+                    onEdit = { editing = it }
                 )
                 2 -> CompareScreen(viewModel.people)
                 else -> SettingsScreen(viewModel)
@@ -77,6 +76,7 @@ fun TaghvimApp(viewModel: PeopleViewModel) {
         AddPersonDialog(
             initial = person,
             memberCount = viewModel.people.count { it.leaderId == person.id },
+            onDelete = { editing = null; pendingDelete = person },
             onDismiss = { editing = null },
             onSave = { head, members, apply -> viewModel.update(head, members, apply); editing = null }
         )
@@ -92,7 +92,13 @@ fun TaghvimApp(viewModel: PeopleViewModel) {
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
             title = { Text("حذف نیرو", fontWeight = FontWeight.Bold) },
-            text = { Text("«${person.name}» حذف شود؟ این کار قابل بازگشت نیست.") },
+            text = {
+                val members = viewModel.people.count { it.leaderId == person.id }
+                Text(
+                    "«${person.name}» حذف شود؟ این کار قابل بازگشت نیست." +
+                        if (person.isLeader && members > 0) " زیرمجموعه‌های او حذف نمی‌شوند." else ""
+                )
+            },
             confirmButton = {
                 TextButton(onClick = { viewModel.remove(person.id); pendingDelete = null }) {
                     Text("حذف", color = Color.Red)

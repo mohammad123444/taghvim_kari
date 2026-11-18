@@ -63,4 +63,21 @@ class BucketsTest {
         val sorted = listOf(member, single, leader).sortedByTeam(mapOf("L" to "ب")) { it }
         assertEquals(listOf("L", "M", "S"), sorted.map { it.id })
     }
+
+    @Test fun twoWeekRestSplitsDays1to7AndDays8to14() {
+        // Both patterns with a two-week rest: rest starts after 2 weeks of work (DAY2_REST2)
+        // or after a day week and a night week (DAY_NIGHT_REST2).
+        for (pattern in listOf(Pattern.DAY2_REST2, Pattern.DAY_NIGHT_REST2)) {
+            val p = person(pattern)
+            val firstRestDay = saturday.plusDays(14)
+            for (n in 1..7) {
+                assertEquals("rest day $n of $pattern", Bucket.REST_WEEK1,
+                    bucketOf(p, ShiftEngine.status(p, firstRestDay.plusDays((n - 1).toLong()))))
+            }
+            for (n in 8..14) {
+                assertEquals("rest day $n of $pattern", Bucket.REST_WEEK2,
+                    bucketOf(p, ShiftEngine.status(p, firstRestDay.plusDays((n - 1).toLong()))))
+            }
+        }
+    }
 }

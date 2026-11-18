@@ -13,10 +13,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -39,7 +37,7 @@ import ir.taghvimkari.app.domain.sortedByTeam
 import java.time.LocalDate
 
 @Composable
-fun PeopleScreen(people: List<Person>, onAdd: () -> Unit, onEdit: (Person) -> Unit, onDelete: (Person) -> Unit) {
+fun PeopleScreen(people: List<Person>, onAdd: () -> Unit, onEdit: (Person) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
     var dateEpoch by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
     var showPicker by rememberSaveable { mutableStateOf(false) }
@@ -83,7 +81,7 @@ fun PeopleScreen(people: List<Person>, onAdd: () -> Unit, onEdit: (Person) -> Un
             modifier = Modifier.padding(horizontal = 4.dp)
         )
         Spacer(Modifier.height(8.dp))
-        if (filtered.isEmpty()) EmptyMessage("نیرویی پیدا نشد. برای ثبت نیرو، دکمه + را بزنید. برای ویرایش، روی نام هر نفر بزنید.")
+        if (filtered.isEmpty()) EmptyMessage("نیرویی پیدا نشد. برای ثبت نیرو، دکمه + را بزنید. برای ویرایش یا حذف، روی هر نفر بزنید.")
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(filtered, key = { it.id }) { p ->
                 Row(
@@ -92,9 +90,6 @@ fun PeopleScreen(people: List<Person>, onAdd: () -> Unit, onEdit: (Person) -> Un
                 ) {
                     Box(Modifier.weight(1f)) {
                         PersonCard(p, ShiftEngine.status(p, date), leaderName = p.leaderId?.let { leaderNames[it] }, onClick = { onEdit(p) })
-                    }
-                    IconButton(onClick = { onDelete(p) }) {
-                        Icon(Icons.Default.Delete, contentDescription = "حذف", tint = Color.Red)
                     }
                 }
             }

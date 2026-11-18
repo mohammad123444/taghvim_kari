@@ -47,6 +47,8 @@ fun AddPersonDialog(
     initial: Person? = null,
     /** Number of existing members when editing a leader. */
     memberCount: Int = 0,
+    /** Only offered when editing; the caller asks for confirmation before really deleting. */
+    onDelete: (() -> Unit)? = null,
     onDismiss: () -> Unit,
     onSave: (head: Person, members: List<Person>, applyToMembers: Boolean) -> Unit
 ) {
@@ -182,7 +184,14 @@ fun AddPersonDialog(
                 }
             }) { Text("ذخیره") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("انصراف") } }
+        dismissButton = {
+            Row {
+                if (initial != null && onDelete != null) {
+                    TextButton(onClick = onDelete) { Text("حذف", color = Color.Red, fontWeight = FontWeight.Bold) }
+                }
+                TextButton(onClick = onDismiss) { Text("انصراف") }
+            }
+        }
     )
 
     if (showPicker) {
