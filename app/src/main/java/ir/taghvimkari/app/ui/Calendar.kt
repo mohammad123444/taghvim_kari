@@ -133,7 +133,7 @@ fun JalaliMonthCalendar(
     }
 }
 
-private val CELL_HEIGHT = 48.dp
+private val CELL_HEIGHT = 58.dp
 
 @Composable
 private fun DayCell(
@@ -166,15 +166,24 @@ private fun DayCell(
                 day.toPersian(),
                 color = textColor,
                 fontWeight = if (isToday || isSelected) FontWeight.Bold else FontWeight.Normal,
-                fontSize = 15.sp
+                fontSize = 14.sp
             )
             if (badge != null) {
-                Text(
-                    badge,
-                    color = if (isSelected) Color(0xFFE6E3FF) else Purple,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                // A small solid pill keeps the head-count readable on any background.
+                Box(
+                    Modifier
+                        .padding(top = 2.dp)
+                        .clip(RoundedCornerShape(7.dp))
+                        .background(if (isSelected) Color.White else Color(0xFFDCD8F5))
+                        .padding(horizontal = 6.dp, vertical = 1.dp)
+                ) {
+                    Text(
+                        badge,
+                        color = if (isSelected) Purple else Navy,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }

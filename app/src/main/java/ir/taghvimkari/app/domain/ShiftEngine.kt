@@ -13,7 +13,9 @@ data class DayStatus(
     val working: Boolean,
     val started: Boolean,
     val elapsedDays: Int,
-    val daysToChange: Int
+    val daysToChange: Int,
+    /** 1 = first week of the rest period, 2 = second week; 0 when working or not applicable. */
+    val restWeek: Int = 0
 )
 
 object ShiftEngine {
@@ -72,7 +74,8 @@ object ShiftEngine {
             toChange++
             d = d.plusDays(1)
         }
-        return DayStatus(current, working, true, elapsed, toChange)
+        val restWeek = if (!working && person.pattern != Pattern.OFFICIAL_DAYS) (elapsed - 1) / 7 + 1 else 0
+        return DayStatus(current, working, true, elapsed, toChange, restWeek)
     }
 
     fun isWorking(person: Person, date: LocalDate): Boolean = shift(person, date) != Shift.REST

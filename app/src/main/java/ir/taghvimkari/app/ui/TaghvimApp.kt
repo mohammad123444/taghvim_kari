@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -59,12 +60,8 @@ fun TaghvimApp(viewModel: PeopleViewModel) {
                     onEdit = { editing = it },
                     onDelete = { pendingDelete = it }
                 )
-                else -> SettingsScreen(
-                    people = viewModel.people,
-                    updatesEnabled = viewModel.updatesEnabled,
-                    checking = viewModel.updateUi is UpdateUi.Checking,
-                    onCheckUpdate = { viewModel.checkForUpdate(manual = true) }
-                )
+                2 -> CompareScreen(viewModel.people)
+                else -> SettingsScreen(viewModel)
             }
         }
     }
@@ -141,6 +138,10 @@ private fun AppNavigation(selected: Int, onSelect: (Int) -> Unit) {
         )
         NavigationBarItem(
             selected = selected == 2, onClick = { onSelect(2) },
+            icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) }, label = { Text("مقایسه") }
+        )
+        NavigationBarItem(
+            selected = selected == 3, onClick = { onSelect(3) },
             icon = { Icon(Icons.Default.Settings, contentDescription = null) }, label = { Text("تنظیمات") }
         )
     }

@@ -10,13 +10,24 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
 
-/** SharedPreferences-backed storage. The JSON format is unchanged from v1.0, so existing data still loads. */
+/** SharedPreferences-backed storage. The JSON format is backward compatible with all earlier versions. */
 class LocalStore(context: Context) {
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun load(): List<Person> {
         val array = runCatching { JSONArray(prefs.getString(KEY_PEOPLE, "[]")) }.getOrElse { JSONArray() }
-        return (0 until array.length()).mapNotNull { i ->
+        return decode(array)
+    }
+
+    fun save(people: List<Person>) {
+        prefs.edit().putString(KEY_PEOPLE, encode(people).toString()).apply()
+    }
+
+    companion object {
+        private const val PREFS_NAME = "taghvim_kari"
+        private const val KEY_PEOPLE = "people"
+
+        fun decode(array: JSONArray): List<Person> = (0 until array.length()).mapNotNull { i ->
             runCatching {
                 val o = array.getJSONObject(i)
                 val pattern = Pattern.valueOf(o.optString("pattern", Pattern.DAY_NIGHT_REST.name))
@@ -38,32 +49,27 @@ class LocalStore(context: Context) {
                 )
             }.getOrNull()
         }
-    }
 
-    fun save(people: List<Person>) {
-        val array = JSONArray()
-        people.forEach { p ->
-            array.put(
-                JSONObject().apply {
-                    put("id", p.id)
-                    put("name", p.name)
-                    put("workType", p.workType)
-                    put("employment", p.employment.name)
-                    put("pattern", p.pattern.name)
-                    put("startDate", p.startDate.toString())
-                    put("startWeekday", p.startWeekday)
-                    put("active", p.active)
-                    put("isLeader", p.isLeader)
-                    put("leaderId", p.leaderId ?: "")
-                    put("category", p.category.name)
-                }
-            )
+        fun encode(people: List<Person>): JSONArray {
+            val array = JSONArray()
+            people.forEach { p ->
+                array.put(
+                    JSONObject().apply {
+                        put("id", p.id)
+                        put("name", p.name)
+                        put("workType", p.workType)
+                        put("employment", p.employment.name)
+                        put("pattern", p.pattern.name)
+                        put("startDate", p.startDate.toString())
+                        put("startWeekday", p.startWeekday)
+                        put("active", p.active)
+                        put("isLeader", p.isLeader)
+                        put("leaderId", p.leaderId ?: "")
+                        put("category", p.category.name)
+                    }
+                )
+            }
+            return array
         }
-        prefs.edit().putString(KEY_PEOPLE, array.toString()).apply()
-    }
-
-    private companion object {
-        const val PREFS_NAME = "taghvim_kari"
-        const val KEY_PEOPLE = "people"
     }
 }

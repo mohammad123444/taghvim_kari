@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import ir.taghvimkari.app.domain.JalaliDate
 import ir.taghvimkari.app.domain.Person
 import ir.taghvimkari.app.domain.ShiftEngine
+import ir.taghvimkari.app.domain.sortedByTeam
 import java.time.LocalDate
 
 @Composable
@@ -45,11 +46,10 @@ fun PeopleScreen(people: List<Person>, onAdd: () -> Unit, onEdit: (Person) -> Un
     val date = LocalDate.ofEpochDay(dateEpoch)
     val isToday = date == LocalDate.now()
     val leaderNames = people.filter { it.isLeader }.associate { it.id to it.name }
-    // Each leader is followed by their members.
-    val groupOrder = people.map { it.leaderId ?: it.id }.distinct()
+    // Each shift leader comes first, immediately followed by his members.
     val filtered = people
         .filter { it.name.contains(query.trim(), ignoreCase = true) }
-        .sortedWith(compareBy({ groupOrder.indexOf(it.leaderId ?: it.id) }, { if (it.isLeader) 0 else 1 }))
+        .sortedByTeam(leaderNames) { it }
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(

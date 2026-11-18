@@ -32,6 +32,7 @@ import ir.taghvimkari.app.domain.Employment
 import ir.taghvimkari.app.domain.JalaliDate
 import ir.taghvimkari.app.domain.Person
 import ir.taghvimkari.app.domain.DayStatus
+import ir.taghvimkari.app.domain.bucketOf
 import ir.taghvimkari.app.domain.toPersian
 
 @Composable
@@ -90,18 +91,27 @@ fun PersonCard(person: Person, status: DayStatus? = null, leaderName: String? = 
                     color = Color.DarkGray
                 )
                 if (status != null) {
+                    val bucket = bucketOf(person, status)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "وضعیت کاری در تاریخ انتخاب‌شده:",
+                            Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                        Text(
+                            bucket.title,
+                            color = if (bucket.working) Green else Color.DarkGray,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                     Text(
                         statusLine(status),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (status.working) Green else Color.DarkGray,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Gray
                     )
                 }
-                Text(
-                    "شروع: ${JalaliDate.from(person.startDate).display()}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
             }
             Column(horizontalAlignment = Alignment.End) {
                 Surface(color = employmentColor.copy(alpha = .13f), shape = RoundedCornerShape(8.dp)) {
@@ -121,14 +131,6 @@ fun PersonCard(person: Person, status: DayStatus? = null, leaderName: String? = 
                         color = Purple,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold
-                    )
-                }
-                if (status != null) {
-                    Spacer(Modifier.height(5.dp))
-                    Text(
-                        status.shift.title,
-                        color = if (!status.working) Color.Gray else Purple,
-                        style = MaterialTheme.typography.labelMedium
                     )
                 }
             }

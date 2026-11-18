@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import ir.taghvimkari.app.domain.Bucket
 import ir.taghvimkari.app.domain.Category
 import ir.taghvimkari.app.domain.DayStatus
 import ir.taghvimkari.app.domain.Employment
@@ -41,11 +42,20 @@ import ir.taghvimkari.app.domain.JalaliDate
 import ir.taghvimkari.app.domain.Person
 import ir.taghvimkari.app.domain.Shift
 import ir.taghvimkari.app.domain.ShiftEngine
+import ir.taghvimkari.app.domain.bucketOf
+import ir.taghvimkari.app.domain.sortedByTeam
 import ir.taghvimkari.app.domain.toPersian
 import java.time.LocalDate
 
 private val PresentGreen = Color(0xFF218838)
-private val AbsentGray = Color(0xFF757575)
+private val NightIndigo = Color(0xFF4F46C8)
+private val RestGray = Color(0xFF757575)
+
+private fun bucketColor(bucket: Bucket): Color = when (bucket) {
+    Bucket.DAY -> PresentGreen
+    Bucket.NIGHT -> NightIndigo
+    else -> RestGray
+}
 
 @Composable
 fun DashboardScreen(people: List<Person>) {
@@ -56,28 +66,35 @@ fun DashboardScreen(people: List<Person>) {
     var selectedEpoch by rememberSaveable { mutableStateOf<Long?>(null) }
 
     val active = people.filter { it.active }
-    val presentToday = active.count { ShiftEngine.isWorking(it, today) }
+    val shiftsToday = active.map { ShiftEngine.shift(it, today) }
+    val dayCount = shiftsToday.count { it == Shift.DAY || it == Shift.WORK }
+    val nightCount = shiftsToday.count { it == Shift.NIGHT }
+    val restCount = shiftsToday.count { it == Shift.REST }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("وضعیت امروز", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Navy)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "وضعیت امروز",
+                Modifier.weight(1f),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Navy
+            )
+            Text(
+                JalaliDate.longText(today),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = Navy
+            )
+        }
         Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
-            Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(JalaliDate.longText(today), color = Purple, fontWeight = FontWeight.Bold)
-                    Text("از ${active.size.toPersian()} نیروی فعال", color = Color.Gray)
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        presentToday.toPersian(),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Navy
-                    )
-                    Text("نفر حاضر", color = Color.DarkGray, style = MaterialTheme.typography.bodySmall)
-                }
+            Row(Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 8.dp)) {
+                StatBox("حاضر در روز", dayCount, PresentGreen, Modifier.weight(1f))
+                StatBox("حاضر در شب", nightCount, NightIndigo, Modifier.weight(1f))
+                StatBox("در حال استراحت", restCount, RestGray, Modifier.weight(1f))
             }
         }
 
@@ -113,12 +130,26 @@ fun DashboardScreen(people: List<Person>) {
     }
 }
 
+@Composable
+private fun StatBox(label: String, count: Int, color: Color, modifier: Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            count.toPersian(),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
+        Text(label, color = Color.DarkGray, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DayDetailSheet(date: LocalDate, people: List<Person>, onDismiss: () -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var tab by rememberSaveable { mutableStateOf(0) }
     val statuses = remember(date, people) { people.map { it to ShiftEngine.status(it, date) } }
+    val leaderNames = remember(people) { people.filter { it.isLeader }.associate { it.id to it.name } }
     val employments = Employment.entries
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = AppBackground) {
@@ -163,23 +194,36 @@ private fun DayDetailSheet(date: LocalDate, people: List<Person>, onDismiss: () 
                 if (group.isEmpty()) EmptyMessage("نیروی ${employments[tab].title} ثبت نشده است.")
                 // Administrative and operational staff are shown in separate boxes.
                 Category.entries.forEach { cat ->
-                    CategoryBox(cat, group.filter { it.first.category == cat }, "${employments[tab].name}-${cat.name}")
+                    CategoryBox(
+                        category = cat,
+                        items = group.filter { it.first.category == cat },
+                        leaderNames = leaderNames,
+                        stateKey = "${employments[tab].name}-${cat.name}"
+                    )
                 }
             }
         }
     }
 }
 
-private val WORK_SHIFT_ORDER = listOf(Shift.DAY, Shift.NIGHT, Shift.WORK)
-
-/** Collapsible box for one category (اداری / عملیاتی); closed by default so the sheet stays short. */
+/** A collapsible box for one category (اداری / عملیاتی), closed by default. */
 @Composable
-private fun CategoryBox(category: Category, items: List<Pair<Person, DayStatus>>, stateKey: String) {
+private fun CategoryBox(
+    category: Category,
+    items: List<Pair<Person, DayStatus>>,
+    leaderNames: Map<String, String>,
+    stateKey: String
+) {
     var expanded by rememberSaveable(stateKey) { mutableStateOf(false) }
-    val present = items.filter { it.second.working }
-    val resting = items
-        .filter { !it.second.working }
-        .sortedWith(compareBy({ it.second.daysToChange }, { it.first.name }))
+    val present = items.count { it.second.working }
+    // Administrative staff only have two states; operational staff have day, night and two rest weeks.
+    val buckets = if (category == Category.ADMIN) {
+        listOf(Bucket.DAY, Bucket.REST)
+    } else {
+        listOf(Bucket.DAY, Bucket.NIGHT, Bucket.REST_WEEK1, Bucket.REST_WEEK2, Bucket.NOT_STARTED)
+    }
+    val byBucket = items.groupBy { bucketOf(it.first, it.second) }
+
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xFFEDEBFA)),
         shape = RoundedCornerShape(18.dp)
@@ -197,7 +241,7 @@ private fun CategoryBox(category: Category, items: List<Pair<Person, DayStatus>>
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        "${present.size.toPersian()} حاضر • ${resting.size.toPersian()} استراحت",
+                        "${present.toPersian()} حاضر • ${(items.size - present).toPersian()} استراحت",
                         color = Purple,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.labelLarge
@@ -212,31 +256,17 @@ private fun CategoryBox(category: Category, items: List<Pair<Person, DayStatus>>
                 ) {
                     if (items.isEmpty()) {
                         Text("نیروی ${category.title} ثبت نشده است.", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
-                    } else {
-                        Text("حاضر (${present.size.toPersian()} نفر)", fontWeight = FontWeight.Bold, color = PresentGreen, style = MaterialTheme.typography.titleSmall)
-                        if (present.isEmpty()) {
-                            Text("کسی حاضر نیست.", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                    }
+                    buckets.forEach { bucket ->
+                        val list = byBucket[bucket].orEmpty()
+                        // "Not started" is only shown when someone is in it.
+                        if (bucket != Bucket.NOT_STARTED || list.isNotEmpty()) {
+                            BucketSection(
+                                bucket = bucket,
+                                items = list.sortedByTeam(leaderNames) { it.first },
+                                stateKey = "$stateKey-${bucket.name}"
+                            )
                         }
-                        // Sorted by shift: روزکار, شب‌کار, کار; leaders first inside each shift.
-                        WORK_SHIFT_ORDER.forEach { sh ->
-                            val group = present
-                                .filter { it.second.shift == sh }
-                                .sortedWith(compareBy({ if (it.first.isLeader) 0 else 1 }, { it.first.name }))
-                            if (group.isNotEmpty()) {
-                                Text(
-                                    "${sh.title} (${group.size.toPersian()})",
-                                    color = Navy,
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                                group.forEach { (p, st) -> StatusRow(p, st, PresentGreen) }
-                            }
-                        }
-                        Text("استراحت (${resting.size.toPersian()} نفر)", fontWeight = FontWeight.Bold, color = AbsentGray, style = MaterialTheme.typography.titleSmall)
-                        if (resting.isEmpty()) {
-                            Text("کسی در استراحت نیست.", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
-                        }
-                        resting.forEach { (p, st) -> StatusRow(p, st, AbsentGray) }
                     }
                 }
             }
@@ -244,22 +274,56 @@ private fun CategoryBox(category: Category, items: List<Pair<Person, DayStatus>>
     }
 }
 
+/** One collapsible sub-section (e.g. روزکار) listing leader first, then his members. */
 @Composable
-private fun StatusRow(person: Person, status: DayStatus, color: Color) {
-    val line = statusLine(status)
+private fun BucketSection(bucket: Bucket, items: List<Pair<Person, DayStatus>>, stateKey: String) {
+    var expanded by rememberSaveable(stateKey) { mutableStateOf(false) }
+    val color = bucketColor(bucket)
     Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(14.dp)) {
-        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.fillMaxWidth()) {
+            Row(
+                Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(bucket.title, Modifier.weight(1f), fontWeight = FontWeight.Bold, color = color)
+                Text("${items.size.toPersian()} نفر", color = color, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                Text(if (expanded) "  ▴" else "  ▾", color = color, fontSize = 18.sp)
+            }
+            if (expanded) {
+                Column(
+                    Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (items.isEmpty()) {
+                        Text("کسی در این گروه نیست.", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                    }
+                    items.forEach { (p, s) -> StatusRow(p, s, color, bucket) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusRow(person: Person, status: DayStatus, color: Color, bucket: Bucket) {
+    val isMember = person.leaderId != null && !person.isLeader
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(start = if (isMember) 14.dp else 0.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF7F6FD)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(
                     if (person.isLeader) "${person.name} • سرشیفت" else person.name,
                     fontWeight = FontWeight.Bold,
                     color = Navy
                 )
-                Text(line, style = MaterialTheme.typography.bodySmall, color = Color.DarkGray)
+                Text(statusLine(status), style = MaterialTheme.typography.bodySmall, color = Color.DarkGray)
             }
             Surface(color = color.copy(alpha = .13f), shape = RoundedCornerShape(8.dp)) {
                 Text(
-                    status.shift.title,
+                    bucket.title,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                     color = color,
                     style = MaterialTheme.typography.labelSmall,
