@@ -31,7 +31,8 @@ import androidx.compose.ui.unit.dp
 import ir.taghvimkari.app.domain.Employment
 import ir.taghvimkari.app.domain.JalaliDate
 import ir.taghvimkari.app.domain.Person
-import ir.taghvimkari.app.domain.Shift
+import ir.taghvimkari.app.domain.DayStatus
+import ir.taghvimkari.app.domain.toPersian
 
 @Composable
 fun EmptyMessage(text: String) {
@@ -62,7 +63,7 @@ fun FilterDropdown(label: String, options: List<String>, value: String, onChange
 }
 
 @Composable
-fun PersonCard(person: Person, shift: Shift?, leaderName: String? = null, onClick: (() -> Unit)? = null) {
+fun PersonCard(person: Person, status: DayStatus? = null, leaderName: String? = null, onClick: (() -> Unit)? = null) {
     val employmentColor = when (person.employment) {
         Employment.OFFICIAL -> Blue
         Employment.CONTRACTUAL -> Green
@@ -88,6 +89,14 @@ fun PersonCard(person: Person, shift: Shift?, leaderName: String? = null, onClic
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.DarkGray
                 )
+                if (status != null) {
+                    Text(
+                        statusLine(status),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (status.working) Green else Color.DarkGray,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 Text(
                     "شروع: ${JalaliDate.from(person.startDate).display()}",
                     style = MaterialTheme.typography.bodySmall,
@@ -104,15 +113,32 @@ fun PersonCard(person: Person, shift: Shift?, leaderName: String? = null, onClic
                         fontWeight = FontWeight.Bold
                     )
                 }
-                if (shift != null) {
+                Spacer(Modifier.height(4.dp))
+                Surface(color = Purple.copy(alpha = .10f), shape = RoundedCornerShape(8.dp)) {
+                    Text(
+                        person.category.title,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        color = Purple,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                if (status != null) {
                     Spacer(Modifier.height(5.dp))
                     Text(
-                        shift.title,
-                        color = if (shift == Shift.REST) Color.Gray else Purple,
+                        status.shift.title,
+                        color = if (!status.working) Color.Gray else Purple,
                         style = MaterialTheme.typography.labelMedium
                     )
                 }
             }
         }
     }
+}
+
+/** One-line Persian summary of a [DayStatus]: how long the current work/rest stretch has lasted and how long remains. */
+fun statusLine(status: DayStatus): String = when {
+    !status.started -> "هنوز شروع نشده • ${status.daysToChange.toPersian()} روز تا شروع کار"
+    status.working -> "${status.elapsedDays.toPersian()} روز از کار گذشته • ${status.daysToChange.toPersian()} روز تا استراحت"
+    else -> "${status.elapsedDays.toPersian()} روز از استراحت گذشته • ${status.daysToChange.toPersian()} روز تا شروع کار"
 }

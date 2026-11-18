@@ -18,8 +18,10 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,11 +32,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import ir.taghvimkari.app.domain.JalaliDate
 import ir.taghvimkari.app.domain.Person
+import ir.taghvimkari.app.domain.ShiftEngine
+import java.time.LocalDate
 
 @Composable
 fun PeopleScreen(people: List<Person>, onAdd: () -> Unit, onEdit: (Person) -> Unit, onDelete: (Person) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
+    var dateEpoch by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
+    var showPicker by rememberSaveable { mutableStateOf(false) }
+    val date = LocalDate.ofEpochDay(dateEpoch)
+    val isToday = date == LocalDate.now()
     val leaderNames = people.filter { it.isLeader }.associate { it.id to it.name }
     // Each leader is followed by their members.
     val groupOrder = people.map { it.leaderId ?: it.id }.distinct()
@@ -59,6 +68,20 @@ fun PeopleScreen(people: List<Person>, onAdd: () -> Unit, onEdit: (Person) -> Un
             label = { Text("جستجو بر اساس نام") },
             singleLine = true
         )
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(onClick = { showPicker = true }, modifier = Modifier.weight(1f)) {
+                Text("وضعیت در تاریخ: ${JalaliDate.from(date).display()}")
+            }
+            if (!isToday) {
+                TextButton(onClick = { dateEpoch = LocalDate.now().toEpochDay() }) { Text("امروز") }
+            }
+        }
+        Text(
+            JalaliDate.longText(date),
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.Gray,
+            modifier = Modifier.padding(horizontal = 4.dp)
+        )
         Spacer(Modifier.height(8.dp))
         if (filtered.isEmpty()) EmptyMessage("نیرویی پیدا نشد. برای ثبت نیرو، دکمه + را بزنید. برای ویرایش، روی نام هر نفر بزنید.")
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -68,7 +91,7 @@ fun PeopleScreen(people: List<Person>, onAdd: () -> Unit, onEdit: (Person) -> Un
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(Modifier.weight(1f)) {
-                        PersonCard(p, null, leaderName = p.leaderId?.let { leaderNames[it] }, onClick = { onEdit(p) })
+                        PersonCard(p, ShiftEngine.status(p, date), leaderName = p.leaderId?.let { leaderNames[it] }, onClick = { onEdit(p) })
                     }
                     IconButton(onClick = { onDelete(p) }) {
                         Icon(Icons.Default.Delete, contentDescription = "حذف", tint = Color.Red)
@@ -76,5 +99,14 @@ fun PeopleScreen(people: List<Person>, onAdd: () -> Unit, onEdit: (Person) -> Un
                 }
             }
         }
+    }
+
+    if (showPicker) {
+        JalaliDatePickerDialog(
+            initial = date,
+            title = "انتخاب تاریخ",
+            onDismiss = { showPicker = false },
+            onPick = { dateEpoch = it.toEpochDay(); showPicker = false }
+        )
     }
 }

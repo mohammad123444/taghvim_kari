@@ -8,6 +8,12 @@ enum class Employment(val title: String) {
     CONTRACTOR("پیمانکاری")
 }
 
+/** اداری / عملیاتی */
+enum class Category(val title: String) {
+    ADMIN("اداری"),
+    OPERATIONAL("عملیاتی")
+}
+
 enum class Pattern(val title: String, val cycleWeeks: Int) {
     DAY2_REST1("۲ هفته روزکار، ۱ هفته استراحت", 3),
     DAY2_REST2("۲ هفته روزکار، ۲ هفته استراحت", 4),
@@ -38,7 +44,8 @@ data class Person(
     /** True for a shift leader (سرشیفت). */
     val isLeader: Boolean = false,
     /** Id of the leader this person belongs to, if any. */
-    val leaderId: String? = null
+    val leaderId: String? = null,
+    val category: Category = Category.OPERATIONAL
 )
 
 /** Single source of truth for work-type labels (they used to be built in three places with different digits). */

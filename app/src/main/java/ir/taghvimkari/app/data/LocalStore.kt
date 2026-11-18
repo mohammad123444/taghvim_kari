@@ -1,6 +1,7 @@
 package ir.taghvimkari.app.data
 
 import android.content.Context
+import ir.taghvimkari.app.domain.Category
 import ir.taghvimkari.app.domain.Employment
 import ir.taghvimkari.app.domain.Pattern
 import ir.taghvimkari.app.domain.Person
@@ -18,17 +19,22 @@ class LocalStore(context: Context) {
         return (0 until array.length()).mapNotNull { i ->
             runCatching {
                 val o = array.getJSONObject(i)
+                val pattern = Pattern.valueOf(o.optString("pattern", Pattern.DAY_NIGHT_REST.name))
                 Person(
                     id = o.getString("id"),
                     name = o.getString("name"),
                     workType = WorkTypes.normalize(o.optString("workType", WorkTypes.default)),
                     employment = Employment.valueOf(o.optString("employment", Employment.OFFICIAL.name)),
-                    pattern = Pattern.valueOf(o.optString("pattern", Pattern.DAY_NIGHT_REST.name)),
+                    pattern = pattern,
                     startDate = LocalDate.parse(o.getString("startDate")),
                     startWeekday = o.optInt("startWeekday", 0).coerceIn(0, 6),
                     active = o.optBoolean("active", true),
                     isLeader = o.optBoolean("isLeader", false),
-                    leaderId = o.optString("leaderId", "").ifBlank { null }
+                    leaderId = o.optString("leaderId", "").ifBlank { null },
+                    // Older saves have no category: fixed office days mean administrative, shifts mean operational.
+                    category = runCatching { Category.valueOf(o.getString("category")) }.getOrElse {
+                        if (pattern == Pattern.OFFICIAL_DAYS) Category.ADMIN else Category.OPERATIONAL
+                    }
                 )
             }.getOrNull()
         }
@@ -49,6 +55,7 @@ class LocalStore(context: Context) {
                     put("active", p.active)
                     put("isLeader", p.isLeader)
                     put("leaderId", p.leaderId ?: "")
+                    put("category", p.category.name)
                 }
             )
         }

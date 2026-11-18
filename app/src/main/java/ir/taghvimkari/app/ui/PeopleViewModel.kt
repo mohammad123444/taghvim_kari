@@ -49,9 +49,29 @@ class PeopleViewModel(app: Application) : AndroidViewModel(app) {
         store.save(people)
     }
 
-    /** Edits one person; any [members] typed during the edit are added as new people. */
-    fun update(head: Person, members: List<Person>) {
-        people = people.map { if (it.id == head.id) head else it } + members
+    /**
+     * Edits one person; any [members] typed during the edit are added as new people.
+     * With [applyToMembers], only the conditions that changed in this edit are copied to the
+     * leader's existing members, so their other individual settings stay untouched.
+     */
+    fun update(head: Person, members: List<Person>, applyToMembers: Boolean = false) {
+        val old = people.firstOrNull { it.id == head.id }
+        people = people.map { p ->
+            when {
+                p.id == head.id -> head
+                applyToMembers && old != null && p.leaderId == head.id -> {
+                    val dateChanged = head.startDate != old.startDate
+                    p.copy(
+                        employment = if (head.employment != old.employment) head.employment else p.employment,
+                        category = if (head.category != old.category) head.category else p.category,
+                        pattern = if (head.pattern != old.pattern) head.pattern else p.pattern,
+                        startDate = if (dateChanged) head.startDate else p.startDate,
+                        startWeekday = if (dateChanged) head.startWeekday else p.startWeekday
+                    )
+                }
+                else -> p
+            }
+        } + members
         store.save(people)
     }
 

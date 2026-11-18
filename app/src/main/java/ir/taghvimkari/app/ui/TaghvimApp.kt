@@ -74,15 +74,16 @@ fun TaghvimApp(viewModel: PeopleViewModel) {
     if (showAdd) {
         AddPersonDialog(
             onDismiss = { showAdd = false },
-            onSave = { head, members -> viewModel.add(head, members); showAdd = false }
+            onSave = { head, members, _ -> viewModel.add(head, members); showAdd = false }
         )
     }
 
     editing?.let { person ->
         AddPersonDialog(
             initial = person,
+            memberCount = viewModel.people.count { it.leaderId == person.id },
             onDismiss = { editing = null },
-            onSave = { head, members -> viewModel.update(head, members); editing = null }
+            onSave = { head, members, apply -> viewModel.update(head, members, apply); editing = null }
         )
     }
 

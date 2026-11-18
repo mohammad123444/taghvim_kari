@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import ir.taghvimkari.app.domain.Category
 import ir.taghvimkari.app.domain.Employment
 import ir.taghvimkari.app.domain.JalaliDate
 import ir.taghvimkari.app.domain.Pattern
@@ -44,12 +45,16 @@ import java.util.UUID
 @Composable
 fun AddPersonDialog(
     initial: Person? = null,
+    /** Number of existing members when editing a leader. */
+    memberCount: Int = 0,
     onDismiss: () -> Unit,
-    onSave: (head: Person, members: List<Person>) -> Unit
+    onSave: (head: Person, members: List<Person>, applyToMembers: Boolean) -> Unit
 ) {
     val today = remember { LocalDate.now() }
     var name by rememberSaveable { mutableStateOf(initial?.name ?: "") }
     var employment by remember { mutableStateOf(initial?.employment ?: Employment.OFFICIAL) }
+    var category by remember { mutableStateOf(initial?.category ?: Category.OPERATIONAL) }
+    var applyToMembers by rememberSaveable { mutableStateOf(true) }
     var pattern by remember { mutableStateOf(initial?.pattern ?: Pattern.DAY_NIGHT_REST) }
     var startEpochDay by rememberSaveable { mutableStateOf((initial?.startDate ?: today).toEpochDay()) }
     var isLeader by rememberSaveable { mutableStateOf(initial?.isLeader ?: false) }
@@ -76,6 +81,9 @@ fun AddPersonDialog(
                 FilterDropdown("وضعیت استخدامی", Employment.entries.map { it.title }, employment.title) { v ->
                     employment = Employment.entries.first { it.title == v }
                 }
+                FilterDropdown("نوع نیرو", Category.entries.map { it.title }, category.title) { v ->
+                    category = Category.entries.first { it.title == v }
+                }
                 FilterDropdown("الگوی شیفت", Pattern.entries.map { it.title }, pattern.title) { v ->
                     pattern = Pattern.entries.first { it.title == v }
                 }
@@ -90,6 +98,25 @@ fun AddPersonDialog(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("این فرد سرشیفت است", Modifier.weight(1f), fontWeight = FontWeight.Bold)
                     Switch(checked = isLeader, onCheckedChange = { isLeader = it })
+                }
+                if (initial != null && initial.isLeader && memberCount > 0) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "اعمال تغییرات روی ${memberCount.toPersian()} نفر زیرمجموعه",
+                            Modifier.weight(1f),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Switch(checked = applyToMembers, onCheckedChange = { applyToMembers = it })
+                    }
+                    Text(
+                        if (applyToMembers) {
+                            "فقط مواردی که اینجا تغییر می‌دهید (استخدامی، نوع نیرو، الگو، تاریخ شروع) به زیرمجموعه‌ها هم داده می‌شود؛ نام‌ها و بقیهٔ موارد دست‌نخورده می‌ماند."
+                        } else {
+                            "تغییرات فقط برای خود سرشیفت ثبت می‌شود. هر زیرمجموعه را بعداً می‌توانید جدا ویرایش کنید."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
                 }
                 if (isLeader) {
                     OutlinedTextField(
@@ -129,7 +156,8 @@ fun AddPersonDialog(
                         startWeekday = weekday,
                         active = initial?.active ?: true,
                         isLeader = isLeader,
-                        leaderId = initial?.leaderId
+                        leaderId = initial?.leaderId,
+                        category = category
                     )
                     val members = if (isLeader) {
                         memberNames.map { n ->
@@ -141,13 +169,14 @@ fun AddPersonDialog(
                                 pattern = pattern,
                                 startDate = startDate,
                                 startWeekday = weekday,
-                                leaderId = head.id
+                                leaderId = head.id,
+                                category = category
                             )
                         }
                     } else {
                         emptyList()
                     }
-                    onSave(head, members)
+                    onSave(head, members, initial != null && initial.isLeader && memberCount > 0 && applyToMembers)
                 } else {
                     showErrors = true
                 }

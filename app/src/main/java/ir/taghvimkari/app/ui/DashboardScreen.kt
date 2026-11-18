@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import ir.taghvimkari.app.domain.Category
 import ir.taghvimkari.app.domain.DayStatus
 import ir.taghvimkari.app.domain.Employment
 import ir.taghvimkari.app.domain.JalaliDate
@@ -152,18 +153,49 @@ private fun DayDetailSheet(date: LocalDate, people: List<Person>, onDismiss: () 
                 }
             }
             val group = statuses.filter { it.first.employment == employments[tab] }
-            val present = group.filter { it.second.working }
-            val absent = group.filter { !it.second.working }
             Column(
                 Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                if (group.isEmpty()) {
-                    EmptyMessage("نیروی ${employments[tab].title} ثبت نشده است.")
-                } else {
-                    Section("حاضر (${present.size.toPersian()} نفر)", PresentGreen, present, "کسی حاضر نیست.")
-                    Section("غایب (${absent.size.toPersian()} نفر)", AbsentGray, absent, "همه حاضرند.")
+                if (group.isEmpty()) EmptyMessage("نیروی ${employments[tab].title} ثبت نشده است.")
+                // Administrative and operational staff are shown in separate boxes.
+                Category.entries.forEach { cat ->
+                    CategoryBox(cat, group.filter { it.first.category == cat })
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoryBox(category: Category, items: List<Pair<Person, DayStatus>>) {
+    val present = items.filter { it.second.working }
+    val absent = items.filter { !it.second.working }
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFEDEBFA)),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    category.title,
+                    Modifier.weight(1f),
+                    fontWeight = FontWeight.Bold,
+                    color = Navy,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    "${present.size.toPersian()} حاضر از ${items.size.toPersian()}",
+                    color = Purple,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+            if (items.isEmpty()) {
+                Text("نیروی ${category.title} ثبت نشده است.", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+            } else {
+                Section("حاضر (${present.size.toPersian()} نفر)", PresentGreen, present, "کسی حاضر نیست.")
+                Section("غایب (${absent.size.toPersian()} نفر)", AbsentGray, absent, "همه حاضرند.")
             }
         }
     }
@@ -180,11 +212,7 @@ private fun Section(title: String, color: Color, items: List<Pair<Person, DaySta
 
 @Composable
 private fun StatusRow(person: Person, status: DayStatus, color: Color) {
-    val line = when {
-        !status.started -> "هنوز شروع نشده • ${status.daysToChange.toPersian()} روز تا شروع کار"
-        status.working -> "${status.elapsedDays.toPersian()} روز از کار گذشته • ${status.daysToChange.toPersian()} روز تا استراحت"
-        else -> "${status.elapsedDays.toPersian()} روز از استراحت گذشته • ${status.daysToChange.toPersian()} روز تا شروع کار"
-    }
+    val line = statusLine(status)
     Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(14.dp)) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
