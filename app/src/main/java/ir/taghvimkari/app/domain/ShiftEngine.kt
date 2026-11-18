@@ -3,7 +3,22 @@ package ir.taghvimkari.app.domain
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
+/**
+ * Situation of one person on one date.
+ * [elapsedDays] counts the current work/rest streak up to and including the date itself;
+ * [daysToChange] is the number of days until the streak flips (1 = tomorrow).
+ */
+data class DayStatus(
+    val shift: Shift,
+    val working: Boolean,
+    val started: Boolean,
+    val elapsedDays: Int,
+    val daysToChange: Int
+)
+
 object ShiftEngine {
+
+    private const val MAX_STREAK = 400
 
     /** Java DayOfWeek: Monday=1 ... Sunday=7. Persian weekday: Saturday=0 ... Friday=6. */
     fun persianWeekday(date: LocalDate): Int = (date.dayOfWeek.value + 1) % 7
@@ -26,6 +41,38 @@ object ShiftEngine {
             Pattern.DAY_NIGHT_REST2 -> when (week) { 0 -> Shift.DAY; 1 -> Shift.NIGHT; else -> Shift.REST }
             Pattern.OFFICIAL_DAYS -> Shift.REST
         }
+    }
+
+    /** First day of the cycle, or null for the fixed official-days pattern. */
+    fun anchor(person: Person): LocalDate? {
+        if (person.pattern == Pattern.OFFICIAL_DAYS) return null
+        val start = person.startDate
+        return start.plusDays(((person.startWeekday - persianWeekday(start) + 7) % 7).toLong())
+    }
+
+    fun status(person: Person, date: LocalDate): DayStatus {
+        val anchor = anchor(person)
+        if (anchor != null && date.isBefore(anchor)) {
+            return DayStatus(Shift.REST, false, false, 0, ChronoUnit.DAYS.between(date, anchor).toInt())
+        }
+        val current = shift(person, date)
+        val working = current != Shift.REST
+        var elapsed = 1
+        var d = date.minusDays(1)
+        while (elapsed < MAX_STREAK &&
+            (anchor == null || !d.isBefore(anchor)) &&
+            (shift(person, d) != Shift.REST) == working
+        ) {
+            elapsed++
+            d = d.minusDays(1)
+        }
+        var toChange = 1
+        d = date.plusDays(1)
+        while (toChange < MAX_STREAK && (shift(person, d) != Shift.REST) == working) {
+            toChange++
+            d = d.plusDays(1)
+        }
+        return DayStatus(current, working, true, elapsed, toChange)
     }
 
     fun isWorking(person: Person, date: LocalDate): Boolean = shift(person, date) != Shift.REST

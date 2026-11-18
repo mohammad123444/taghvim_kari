@@ -31,16 +31,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ir.taghvimkari.app.domain.Person
-import ir.taghvimkari.app.domain.WorkTypes
 
 @Composable
 fun PeopleScreen(people: List<Person>, onAdd: () -> Unit, onDelete: (Person) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
-    var typeFilter by rememberSaveable { mutableStateOf(WorkTypes.ALL) }
-    val filtered = people.filter {
-        it.name.contains(query.trim(), ignoreCase = true) &&
-            (typeFilter == WorkTypes.ALL || it.workType == typeFilter)
-    }
+    val filtered = people.filter { it.name.contains(query.trim(), ignoreCase = true) }
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -59,8 +54,6 @@ fun PeopleScreen(people: List<Person>, onAdd: () -> Unit, onDelete: (Person) -> 
             label = { Text("جستجو بر اساس نام") },
             singleLine = true
         )
-        Spacer(Modifier.height(8.dp))
-        FilterDropdown("نوع کاری", listOf(WorkTypes.ALL) + WorkTypes.options, typeFilter) { typeFilter = it }
         Spacer(Modifier.height(8.dp))
         if (filtered.isEmpty()) EmptyMessage("نیرویی پیدا نشد. برای ثبت نیرو، دکمه + را بزنید.")
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {

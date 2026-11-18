@@ -89,4 +89,37 @@ class ShiftEngineTest {
         assertEquals("نوع کاری ۳", WorkTypes.normalize("نوع کاری 3"))
         assertEquals(9, WorkTypes.options.size)
     }
+
+    @Test fun statusCountsWorkAndRestStreaks() {
+        val p = person(Pattern.WORK_REST)
+        val first = ShiftEngine.status(p, saturday)
+        assertTrue(first.working)
+        assertEquals(1, first.elapsedDays)
+        assertEquals(7, first.daysToChange)
+
+        val last = ShiftEngine.status(p, saturday.plusDays(6))
+        assertEquals(7, last.elapsedDays)
+        assertEquals(1, last.daysToChange)
+
+        val rest = ShiftEngine.status(p, saturday.plusDays(10))
+        assertTrue(!rest.working)
+        assertEquals(4, rest.elapsedDays)
+        assertEquals(4, rest.daysToChange)
+    }
+
+    @Test fun statusBeforeStartIsNotStarted() {
+        val p = person(Pattern.WORK_REST)
+        val s = ShiftEngine.status(p, saturday.minusDays(3))
+        assertTrue(!s.started)
+        assertTrue(!s.working)
+        assertEquals(3, s.daysToChange)
+    }
+
+    @Test fun dayNightWorkStreakSpansBothWeeks() {
+        val p = person(Pattern.DAY_NIGHT_REST)
+        val s = ShiftEngine.status(p, saturday.plusDays(8))
+        assertEquals(Shift.NIGHT, s.shift)
+        assertEquals(9, s.elapsedDays)
+        assertEquals(6, s.daysToChange)
+    }
 }

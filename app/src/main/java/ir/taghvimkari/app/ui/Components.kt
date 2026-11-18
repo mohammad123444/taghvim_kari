@@ -67,18 +67,17 @@ fun PersonCard(person: Person, shift: Shift?) {
         Employment.CONTRACTUAL -> Green
         Employment.CONTRACTOR -> Orange
     }
-    val weekdayName = JalaliDate.WEEKDAY_NAMES.getOrElse(person.startWeekday) { JalaliDate.WEEKDAY_NAMES.first() }
     Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(14.dp)) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(person.name, fontWeight = FontWeight.Bold, color = Navy)
                 Text(
-                    "${person.workType} • ${person.pattern.title}",
+                    person.pattern.title,
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.DarkGray
                 )
                 Text(
-                    "شروع: ${JalaliDate.from(person.startDate).display()} • روز هفته: $weekdayName",
+                    "شروع: ${JalaliDate.from(person.startDate).display()}",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray
                 )

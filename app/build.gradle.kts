@@ -5,7 +5,7 @@ plugins {
 }
 
 // Values injected by GitHub Actions (all optional for local builds).
-val ciVersionName: String = System.getenv("APP_VERSION_NAME") ?: "1.2.0"
+val ciVersionName: String = System.getenv("APP_VERSION_NAME") ?: "1.3.0"
 val ciVersionCode: Int = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
 // "owner/repo" of the GitHub repository whose Releases are checked for updates.
 val updateRepo: String = (project.findProperty("updateRepo") as String?) ?: System.getenv("GITHUB_REPOSITORY") ?: ""

@@ -40,7 +40,6 @@ fun RangeScreen(people: List<Person>) {
     val today = remember { LocalDate.now() }
     var fromText by rememberSaveable { mutableStateOf(JalaliDate.from(today).format()) }
     var toText by rememberSaveable { mutableStateOf(JalaliDate.from(today.plusDays(4)).format()) }
-    var workType by rememberSaveable { mutableStateOf(WorkTypes.ALL) }
     var employment by rememberSaveable { mutableStateOf(WorkTypes.ALL) }
 
     val fromDate = JalaliDate.parse(fromText)?.toLocalDate()
@@ -54,14 +53,13 @@ fun RangeScreen(people: List<Person>) {
     }
 
     val results: List<Pair<Person, List<Pair<LocalDate, Shift>>>> =
-        remember(people, fromDate, toDate, workType, employment, error) {
+        remember(people, fromDate, toDate, employment, error) {
             if (error != null || fromDate == null || toDate == null) {
                 emptyList()
             } else {
                 people
                     .filter { p ->
                         p.active &&
-                            (workType == WorkTypes.ALL || p.workType == workType) &&
                             (employment == WorkTypes.ALL || p.employment.title == employment)
                     }
                     .map { p -> p to ShiftEngine.workingDays(p, fromDate, toDate) }
@@ -89,7 +87,6 @@ fun RangeScreen(people: List<Person>) {
             label = { Text("تا تاریخ") }, modifier = Modifier.fillMaxWidth(),
             singleLine = true, isError = toDate == null
         )
-        FilterDropdown("نوع کاری", listOf(WorkTypes.ALL) + WorkTypes.options, workType) { workType = it }
         FilterDropdown("وضعیت استخدامی", listOf(WorkTypes.ALL) + Employment.entries.map { it.title }, employment) { employment = it }
 
         if (error != null) {
@@ -105,7 +102,7 @@ fun RangeScreen(people: List<Person>) {
             Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
                 Column(Modifier.fillMaxWidth().padding(12.dp)) {
                     Text(p.name, fontWeight = FontWeight.Bold, color = Navy)
-                    Text("${p.workType} • ${p.employment.title}", color = Color.DarkGray)
+                    Text(p.employment.title, color = Color.DarkGray)
                     Text(
                         days.joinToString("، ") { (d, s) ->
                             val j = JalaliDate.from(d)
