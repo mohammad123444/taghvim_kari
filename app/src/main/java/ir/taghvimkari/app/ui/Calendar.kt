@@ -133,7 +133,7 @@ fun JalaliMonthCalendar(
     }
 }
 
-private val CELL_HEIGHT = 58.dp
+private val CELL_HEIGHT = 62.dp
 
 @Composable
 private fun DayCell(
@@ -151,12 +151,13 @@ private fun DayCell(
         isFriday -> FridayRed
         else -> Color(0xFF222244)
     }
+    // The day number and the head-count live together in one box; the day number is the larger one.
     Box(
         modifier
             .padding(2.dp)
             .height(CELL_HEIGHT - 4.dp)
             .clip(shape)
-            .background(if (isSelected) Purple else Color.Transparent)
+            .background(if (isSelected) Purple else Color(0xFFF1EFFB))
             .then(if (isToday && !isSelected) Modifier.border(BorderStroke(1.5.dp, Purple), shape) else Modifier)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
@@ -165,25 +166,16 @@ private fun DayCell(
             Text(
                 day.toPersian(),
                 color = textColor,
-                fontWeight = if (isToday || isSelected) FontWeight.Bold else FontWeight.Normal,
-                fontSize = 14.sp
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
             )
             if (badge != null) {
-                // A small solid pill keeps the head-count readable on any background.
-                Box(
-                    Modifier
-                        .padding(top = 2.dp)
-                        .clip(RoundedCornerShape(7.dp))
-                        .background(if (isSelected) Color.White else Color(0xFFDCD8F5))
-                        .padding(horizontal = 6.dp, vertical = 1.dp)
-                ) {
-                    Text(
-                        badge,
-                        color = if (isSelected) Purple else Navy,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    badge,
+                    color = if (isSelected) Color(0xFFE6E3FF) else Purple,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

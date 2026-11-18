@@ -16,7 +16,10 @@ data class DayStatus(
     val daysToChange: Int,
     /** 1 = first week of the rest period, 2 = second week; 0 when working or not applicable. */
     val restWeek: Int = 0
-)
+) {
+    /** Days of the current work/rest stretch still to come after today (a 14-day stretch on day 10 -> 4). */
+    val remainingDays: Int get() = daysToChange - 1
+}
 
 object ShiftEngine {
 

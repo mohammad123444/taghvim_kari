@@ -37,9 +37,23 @@ class BucketsTest {
         assertEquals(Bucket.REST_WEEK2, bucketOf(p, ShiftEngine.status(p, saturday.plusDays(21))))
     }
 
-    @Test fun notStartedPeopleGetTheirOwnBucket() {
+    @Test fun notStartedPeopleAreShownInTheSecondRestWeek() {
         val p = person(Pattern.WORK_REST)
-        assertEquals(Bucket.NOT_STARTED, bucketOf(p, ShiftEngine.status(p, saturday.minusDays(2))))
+        assertEquals(Bucket.REST_WEEK2, bucketOf(p, ShiftEngine.status(p, saturday.minusDays(2))))
+    }
+
+    @Test fun remainingDaysDoNotCountToday() {
+        // 14 working days (two day weeks): on day 10 -> 10 passed, 4 left.
+        val p = person(Pattern.DAY2_REST1)
+        val s = ShiftEngine.status(p, saturday.plusDays(9))
+        assertEquals(10, s.elapsedDays)
+        assertEquals(4, s.remainingDays)
+        // Last working day: nothing left.
+        assertEquals(0, ShiftEngine.status(p, saturday.plusDays(13)).remainingDays)
+        // First rest day of a 7-day rest: 1 passed, 6 left.
+        val rest = ShiftEngine.status(p, saturday.plusDays(14))
+        assertEquals(1, rest.elapsedDays)
+        assertEquals(6, rest.remainingDays)
     }
 
     @Test fun teamsAreListedLeaderFirstThenMembers() {

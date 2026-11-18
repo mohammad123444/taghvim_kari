@@ -75,63 +75,71 @@ fun PersonCard(person: Person, status: DayStatus? = null, leaderName: String? = 
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(14.dp)
     ) {
-        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    if (person.isLeader) "${person.name} • سرشیفت" else person.name,
-                    fontWeight = FontWeight.Bold,
-                    color = Navy
-                )
-                if (leaderName != null) {
-                    Text("زیرمجموعهٔ $leaderName", style = MaterialTheme.typography.bodySmall, color = Purple)
-                }
-                Text(
-                    person.pattern.title,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.DarkGray
-                )
-                if (status != null) {
-                    val bucket = bucketOf(person, status)
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "وضعیت کاری در تاریخ انتخاب‌شده:",
-                            Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
-                        )
-                        Text(
-                            bucket.title,
-                            color = if (bucket.working) Green else Color.DarkGray,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+        Column(Modifier.fillMaxWidth().padding(12.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        if (person.isLeader) "${person.name} • سرشیفت" else person.name,
+                        fontWeight = FontWeight.Bold,
+                        color = Navy
+                    )
+                    if (leaderName != null) {
+                        Text("زیرمجموعهٔ $leaderName", style = MaterialTheme.typography.bodySmall, color = Purple)
                     }
                     Text(
-                        statusLine(status),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.Gray
+                        person.pattern.title,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.DarkGray
                     )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Surface(color = employmentColor.copy(alpha = .13f), shape = RoundedCornerShape(8.dp)) {
+                        Text(
+                            person.employment.title,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                            color = employmentColor,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Surface(color = Purple.copy(alpha = .10f), shape = RoundedCornerShape(8.dp)) {
+                        Text(
+                            person.category.title,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            color = Purple,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Surface(color = employmentColor.copy(alpha = .13f), shape = RoundedCornerShape(8.dp)) {
-                    Text(
-                        person.employment.title,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                        color = employmentColor,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Spacer(Modifier.height(4.dp))
-                Surface(color = Purple.copy(alpha = .10f), shape = RoundedCornerShape(8.dp)) {
-                    Text(
-                        person.category.title,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        color = Purple,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+            if (status != null) {
+                val bucket = bucketOf(person, status)
+                Spacer(Modifier.height(8.dp))
+                // Label, shift and counts together in one box at the bottom of the card.
+                Surface(color = Color(0xFFF1EFFB), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "وضعیت کاری در این تاریخ:",
+                                Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.DarkGray
+                            )
+                            Text(
+                                bucket.title,
+                                color = if (bucket.working) Green else Color.DarkGray,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        Text(
+                            statusLine(status),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.DarkGray
+                        )
+                    }
                 }
             }
         }
@@ -139,8 +147,14 @@ fun PersonCard(person: Person, status: DayStatus? = null, leaderName: String? = 
 }
 
 /** One-line Persian summary of a [DayStatus]: how long the current work/rest stretch has lasted and how long remains. */
-fun statusLine(status: DayStatus): String = when {
-    !status.started -> "هنوز شروع نشده • ${status.daysToChange.toPersian()} روز تا شروع کار"
-    status.working -> "${status.elapsedDays.toPersian()} روز از کار گذشته • ${status.daysToChange.toPersian()} روز تا استراحت"
-    else -> "${status.elapsedDays.toPersian()} روز از استراحت گذشته • ${status.daysToChange.toPersian()} روز تا شروع کار"
+fun statusLine(status: DayStatus): String {
+    val left = status.remainingDays
+    return when {
+        // Today counts as a day that has passed: day 10 of 14 -> "10 passed, 4 left".
+        !status.started -> "${left.toPersian()} روز استراحت مانده"
+        status.working -> "${status.elapsedDays.toPersian()} روز از کار گذشته • " +
+            if (left > 0) "${left.toPersian()} روز کار مانده" else "امروز آخرین روز کار است"
+        else -> "${status.elapsedDays.toPersian()} روز از استراحت گذشته • " +
+            if (left > 0) "${left.toPersian()} روز استراحت مانده" else "امروز آخرین روز استراحت است"
+    }
 }

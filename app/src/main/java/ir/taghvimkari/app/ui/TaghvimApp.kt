@@ -130,7 +130,7 @@ private fun AppNavigation(selected: Int, onSelect: (Int) -> Unit) {
     NavigationBar(containerColor = Color.White) {
         NavigationBarItem(
             selected = selected == 0, onClick = { onSelect(0) },
-            icon = { Icon(Icons.Default.DateRange, contentDescription = null) }, label = { Text("امروز") }
+            icon = { Icon(Icons.Default.DateRange, contentDescription = null) }, label = { Text("تقویم") }
         )
         NavigationBarItem(
             selected = selected == 1, onClick = { onSelect(1) },

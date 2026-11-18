@@ -138,6 +138,21 @@ fun CompareScreen(people: List<Person>) {
         }
     }
 
+    // Week lengths inside the range; weeks start on Saturday, so the first and last may be partial.
+    val weekLengths = remember(fromEpoch, toEpoch) {
+        val out = ArrayList<Int>()
+        var length = 0
+        for (i in 0 until days.coerceAtLeast(0)) {
+            if (i > 0 && ShiftEngine.persianWeekday(from.plusDays(i.toLong())) == 0) {
+                out.add(length)
+                length = 0
+            }
+            length++
+        }
+        if (length > 0) out.add(length)
+        out
+    }
+
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -231,9 +246,23 @@ fun CompareScreen(people: List<Person>) {
                                     maxLines = 1
                                 )
                             }
-                            Row(Modifier.weight(1f).height(28.dp).clip(RoundedCornerShape(8.dp))) {
-                                row.runs.forEach { (kind, length) ->
-                                    Box(Modifier.weight(length.toFloat()).fillMaxHeight().background(kindColor(kind)))
+                            Box(Modifier.weight(1f).height(28.dp).clip(RoundedCornerShape(8.dp))) {
+                                Row(Modifier.fillMaxSize()) {
+                                    row.runs.forEach { (kind, length) ->
+                                        Box(Modifier.weight(length.toFloat()).fillMaxHeight().background(kindColor(kind)))
+                                    }
+                                }
+                                // A white divider at the start of every week (Saturday).
+                                if (days > 7) {
+                                    Row(Modifier.fillMaxSize()) {
+                                        weekLengths.forEachIndexed { index, length ->
+                                            Box(Modifier.weight(length.toFloat()).fillMaxHeight()) {
+                                                if (index > 0) {
+                                                    Box(Modifier.width(2.dp).fillMaxHeight().background(Color.White))
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

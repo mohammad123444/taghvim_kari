@@ -220,7 +220,7 @@ private fun CategoryBox(
     val buckets = if (category == Category.ADMIN) {
         listOf(Bucket.DAY, Bucket.REST)
     } else {
-        listOf(Bucket.DAY, Bucket.NIGHT, Bucket.REST_WEEK1, Bucket.REST_WEEK2, Bucket.NOT_STARTED)
+        listOf(Bucket.DAY, Bucket.NIGHT, Bucket.REST_WEEK1, Bucket.REST_WEEK2)
     }
     val byBucket = items.groupBy { bucketOf(it.first, it.second) }
 
@@ -258,15 +258,11 @@ private fun CategoryBox(
                         Text("نیروی ${category.title} ثبت نشده است.", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
                     }
                     buckets.forEach { bucket ->
-                        val list = byBucket[bucket].orEmpty()
-                        // "Not started" is only shown when someone is in it.
-                        if (bucket != Bucket.NOT_STARTED || list.isNotEmpty()) {
-                            BucketSection(
-                                bucket = bucket,
-                                items = list.sortedByTeam(leaderNames) { it.first },
-                                stateKey = "$stateKey-${bucket.name}"
-                            )
-                        }
+                        BucketSection(
+                            bucket = bucket,
+                            items = byBucket[bucket].orEmpty().sortedByTeam(leaderNames) { it.first },
+                            stateKey = "$stateKey-${bucket.name}"
+                        )
                     }
                 }
             }

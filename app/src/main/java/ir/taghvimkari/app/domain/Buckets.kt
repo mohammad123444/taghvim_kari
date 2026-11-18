@@ -9,8 +9,7 @@ enum class Bucket(val title: String) {
     NIGHT("شب‌کار"),
     REST("استراحت"),
     REST_WEEK1("هفته اول استراحت"),
-    REST_WEEK2("هفته دوم استراحت"),
-    NOT_STARTED("هنوز شروع نشده");
+    REST_WEEK2("هفته دوم استراحت");
 
     val working: Boolean get() = this == DAY || this == NIGHT
 }
@@ -20,7 +19,8 @@ fun bucketOf(person: Person, status: DayStatus): Bucket {
         return if (status.working) Bucket.DAY else Bucket.REST
     }
     return when {
-        !status.started -> Bucket.NOT_STARTED
+        // Someone whose cycle has not begun yet is shown with the second rest week.
+        !status.started -> Bucket.REST_WEEK2
         status.working -> if (status.shift == Shift.NIGHT) Bucket.NIGHT else Bucket.DAY
         status.restWeek == 1 -> Bucket.REST_WEEK1
         status.restWeek >= 2 -> Bucket.REST_WEEK2
