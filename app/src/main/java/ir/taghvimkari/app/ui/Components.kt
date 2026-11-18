@@ -1,0 +1,107 @@
+package ir.taghvimkari.app.ui
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import ir.taghvimkari.app.domain.Employment
+import ir.taghvimkari.app.domain.JalaliDate
+import ir.taghvimkari.app.domain.Person
+import ir.taghvimkari.app.domain.Shift
+
+@Composable
+fun EmptyMessage(text: String) {
+    Text(
+        text,
+        modifier = Modifier.fillMaxWidth().padding(18.dp),
+        textAlign = TextAlign.Center,
+        color = Color.Gray
+    )
+}
+
+@Composable
+fun FilterDropdown(label: String, options: List<String>, value: String, onChange: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+            Text("$label: $value")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = { onChange(option); expanded = false }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PersonCard(person: Person, shift: Shift?) {
+    val employmentColor = when (person.employment) {
+        Employment.OFFICIAL -> Blue
+        Employment.CONTRACTUAL -> Green
+        Employment.CONTRACTOR -> Orange
+    }
+    val weekdayName = JalaliDate.WEEKDAY_NAMES.getOrElse(person.startWeekday) { JalaliDate.WEEKDAY_NAMES.first() }
+    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(14.dp)) {
+        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(person.name, fontWeight = FontWeight.Bold, color = Navy)
+                Text(
+                    "${person.workType} • ${person.pattern.title}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.DarkGray
+                )
+                Text(
+                    "شروع: ${JalaliDate.from(person.startDate).display()} • روز هفته: $weekdayName",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Surface(color = employmentColor.copy(alpha = .13f), shape = RoundedCornerShape(8.dp)) {
+                    Text(
+                        person.employment.title,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                        color = employmentColor,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                if (shift != null) {
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        shift.title,
+                        color = if (shift == Shift.REST) Color.Gray else Purple,
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            }
+        }
+    }
+}
