@@ -16,4 +16,5 @@ captures/
 *.keystore
 keystore.properties
 *.apk
+!app/signing/taghvim.jks
 *.aab

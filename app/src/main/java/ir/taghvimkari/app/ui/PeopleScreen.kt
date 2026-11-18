@@ -33,9 +33,14 @@ import androidx.compose.ui.unit.dp
 import ir.taghvimkari.app.domain.Person
 
 @Composable
-fun PeopleScreen(people: List<Person>, onAdd: () -> Unit, onDelete: (Person) -> Unit) {
+fun PeopleScreen(people: List<Person>, onAdd: () -> Unit, onEdit: (Person) -> Unit, onDelete: (Person) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
-    val filtered = people.filter { it.name.contains(query.trim(), ignoreCase = true) }
+    val leaderNames = people.filter { it.isLeader }.associate { it.id to it.name }
+    // Each leader is followed by their members.
+    val groupOrder = people.map { it.leaderId ?: it.id }.distinct()
+    val filtered = people
+        .filter { it.name.contains(query.trim(), ignoreCase = true) }
+        .sortedWith(compareBy({ groupOrder.indexOf(it.leaderId ?: it.id) }, { if (it.isLeader) 0 else 1 }))
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -55,11 +60,16 @@ fun PeopleScreen(people: List<Person>, onAdd: () -> Unit, onDelete: (Person) -> 
             singleLine = true
         )
         Spacer(Modifier.height(8.dp))
-        if (filtered.isEmpty()) EmptyMessage("نیرویی پیدا نشد. برای ثبت نیرو، دکمه + را بزنید.")
+        if (filtered.isEmpty()) EmptyMessage("نیرویی پیدا نشد. برای ثبت نیرو، دکمه + را بزنید. برای ویرایش، روی نام هر نفر بزنید.")
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(filtered, key = { it.id }) { p ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.weight(1f)) { PersonCard(p, null) }
+                Row(
+                    Modifier.padding(start = if (p.leaderId != null && !p.isLeader) 20.dp else 0.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(Modifier.weight(1f)) {
+                        PersonCard(p, null, leaderName = p.leaderId?.let { leaderNames[it] }, onClick = { onEdit(p) })
+                    }
                     IconButton(onClick = { onDelete(p) }) {
                         Icon(Icons.Default.Delete, contentDescription = "حذف", tint = Color.Red)
                     }

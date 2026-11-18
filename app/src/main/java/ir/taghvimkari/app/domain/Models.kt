@@ -10,6 +10,7 @@ enum class Employment(val title: String) {
 
 enum class Pattern(val title: String, val cycleWeeks: Int) {
     DAY2_REST1("۲ هفته روزکار، ۱ هفته استراحت", 3),
+    DAY2_REST2("۲ هفته روزکار، ۲ هفته استراحت", 4),
     DAY_NIGHT_REST("۱ هفته روز، ۱ هفته شب، ۱ هفته استراحت", 3),
     WORK_REST("۱ هفته کار، ۱ هفته استراحت", 2),
     DAY_NIGHT_REST2("۱ هفته روز، ۱ هفته شب، ۲ هفته استراحت", 4),
@@ -33,7 +34,11 @@ data class Person(
     val startDate: LocalDate,
     /** 0 = Saturday ... 6 = Friday. The weekday on which each cycle week begins. */
     val startWeekday: Int,
-    val active: Boolean = true
+    val active: Boolean = true,
+    /** True for a shift leader (سرشیفت). */
+    val isLeader: Boolean = false,
+    /** Id of the leader this person belongs to, if any. */
+    val leaderId: String? = null
 )
 
 /** Single source of truth for work-type labels (they used to be built in three places with different digits). */

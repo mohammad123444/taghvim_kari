@@ -1,5 +1,6 @@
 package ir.taghvimkari.app.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -61,16 +62,27 @@ fun FilterDropdown(label: String, options: List<String>, value: String, onChange
 }
 
 @Composable
-fun PersonCard(person: Person, shift: Shift?) {
+fun PersonCard(person: Person, shift: Shift?, leaderName: String? = null, onClick: (() -> Unit)? = null) {
     val employmentColor = when (person.employment) {
         Employment.OFFICIAL -> Blue
         Employment.CONTRACTUAL -> Green
         Employment.CONTRACTOR -> Orange
     }
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(14.dp)) {
+    Card(
+        modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier,
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(14.dp)
+    ) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(person.name, fontWeight = FontWeight.Bold, color = Navy)
+                Text(
+                    if (person.isLeader) "${person.name} • سرشیفت" else person.name,
+                    fontWeight = FontWeight.Bold,
+                    color = Navy
+                )
+                if (leaderName != null) {
+                    Text("زیرمجموعهٔ $leaderName", style = MaterialTheme.typography.bodySmall, color = Purple)
+                }
                 Text(
                     person.pattern.title,
                     style = MaterialTheme.typography.bodySmall,

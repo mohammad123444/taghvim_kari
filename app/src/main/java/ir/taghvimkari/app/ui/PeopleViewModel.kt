@@ -10,6 +10,7 @@ import ir.taghvimkari.app.BuildConfig
 import ir.taghvimkari.app.data.LocalStore
 import ir.taghvimkari.app.data.UpdateChecker
 import ir.taghvimkari.app.data.UpdateInfo
+import ir.taghvimkari.app.data.UpdateInstaller
 import ir.taghvimkari.app.data.UpdateResult
 import ir.taghvimkari.app.domain.Person
 import kotlinx.coroutines.launch
@@ -20,6 +21,9 @@ sealed interface UpdateUi {
     data object UpToDate : UpdateUi
     data object Failed : UpdateUi
     data class Available(val info: UpdateInfo) : UpdateUi
+    data class Downloading(val percent: Int) : UpdateUi
+    data class Downloaded(val path: String) : UpdateUi
+    data class DownloadFailed(val info: UpdateInfo) : UpdateUi
 }
 
 class PeopleViewModel(app: Application) : AndroidViewModel(app) {
@@ -39,8 +43,15 @@ class PeopleViewModel(app: Application) : AndroidViewModel(app) {
         if (updatesEnabled) checkForUpdate(manual = false)
     }
 
-    fun add(person: Person) {
-        people = people + person
+    /** Registers [head] and all [members] (who share the head's conditions) in one go. */
+    fun add(head: Person, members: List<Person>) {
+        people = people + head + members
+        store.save(people)
+    }
+
+    /** Edits one person; any [members] typed during the edit are added as new people. */
+    fun update(head: Person, members: List<Person>) {
+        people = people.map { if (it.id == head.id) head else it } + members
         store.save(people)
     }
 
@@ -62,6 +73,19 @@ class PeopleViewModel(app: Application) : AndroidViewModel(app) {
                 UpdateResult.Failed -> if (manual) UpdateUi.Failed else UpdateUi.Idle
             }
             checkInFlight = false
+        }
+    }
+
+    fun downloadUpdate(info: UpdateInfo) {
+        val url = info.apkUrl?.takeIf { it.isNotBlank() }
+        if (url == null) {
+            updateUi = UpdateUi.DownloadFailed(info)
+            return
+        }
+        updateUi = UpdateUi.Downloading(0)
+        viewModelScope.launch {
+            val file = UpdateInstaller.download(getApplication(), url) { p -> updateUi = UpdateUi.Downloading(p) }
+            updateUi = if (file != null) UpdateUi.Downloaded(file.absolutePath) else UpdateUi.DownloadFailed(info)
         }
     }
 

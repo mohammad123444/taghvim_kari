@@ -188,7 +188,11 @@ private fun StatusRow(person: Person, status: DayStatus, color: Color) {
     Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(14.dp)) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(person.name, fontWeight = FontWeight.Bold, color = Navy)
+                Text(
+                    if (person.isLeader) "${person.name} • سرشیفت" else person.name,
+                    fontWeight = FontWeight.Bold,
+                    color = Navy
+                )
                 Text(line, style = MaterialTheme.typography.bodySmall, color = Color.DarkGray)
                 Text(
                     "${person.pattern.title} • شروع ${JalaliDate.from(person.startDate).display()}",

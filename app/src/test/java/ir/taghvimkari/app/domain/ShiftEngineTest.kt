@@ -122,4 +122,16 @@ class ShiftEngineTest {
         assertEquals(9, s.elapsedDays)
         assertEquals(6, s.daysToChange)
     }
+
+    @Test fun twoWeeksDayTwoWeeksRest() {
+        val p = person(Pattern.DAY2_REST2)
+        assertEquals(Shift.DAY, ShiftEngine.shift(p, saturday))
+        assertEquals(Shift.DAY, ShiftEngine.shift(p, saturday.plusDays(13)))
+        assertEquals(Shift.REST, ShiftEngine.shift(p, saturday.plusDays(14)))
+        assertEquals(Shift.REST, ShiftEngine.shift(p, saturday.plusDays(27)))
+        assertEquals(Shift.DAY, ShiftEngine.shift(p, saturday.plusDays(28)))
+        val s = ShiftEngine.status(p, saturday.plusDays(16))
+        assertEquals(3, s.elapsedDays)
+        assertEquals(12, s.daysToChange)
+    }
 }

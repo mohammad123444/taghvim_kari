@@ -2,6 +2,7 @@ package ir.taghvimkari.app.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
@@ -11,6 +12,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -19,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -29,24 +32,37 @@ import ir.taghvimkari.app.domain.Pattern
 import ir.taghvimkari.app.domain.Person
 import ir.taghvimkari.app.domain.ShiftEngine
 import ir.taghvimkari.app.domain.WorkTypes
+import ir.taghvimkari.app.domain.toPersian
 import java.time.LocalDate
 import java.util.UUID
 
+/**
+ * Add ([initial] == null) or edit one person.
+ * For a shift leader, names typed in the members box are created with the same
+ * employment, pattern and start date, so nothing has to be repeated per person.
+ */
 @Composable
-fun AddPersonDialog(onDismiss: () -> Unit, onSave: (Person) -> Unit) {
+fun AddPersonDialog(
+    initial: Person? = null,
+    onDismiss: () -> Unit,
+    onSave: (head: Person, members: List<Person>) -> Unit
+) {
     val today = remember { LocalDate.now() }
-    var name by rememberSaveable { mutableStateOf("") }
-    var employment by remember { mutableStateOf(Employment.OFFICIAL) }
-    var pattern by remember { mutableStateOf(Pattern.DAY_NIGHT_REST) }
-    var startEpochDay by rememberSaveable { mutableStateOf(today.toEpochDay()) }
+    var name by rememberSaveable { mutableStateOf(initial?.name ?: "") }
+    var employment by remember { mutableStateOf(initial?.employment ?: Employment.OFFICIAL) }
+    var pattern by remember { mutableStateOf(initial?.pattern ?: Pattern.DAY_NIGHT_REST) }
+    var startEpochDay by rememberSaveable { mutableStateOf((initial?.startDate ?: today).toEpochDay()) }
+    var isLeader by rememberSaveable { mutableStateOf(initial?.isLeader ?: false) }
+    var membersText by rememberSaveable { mutableStateOf("") }
     var showPicker by rememberSaveable { mutableStateOf(false) }
     var showErrors by remember { mutableStateOf(false) }
 
     val startDate = LocalDate.ofEpochDay(startEpochDay)
+    val memberNames = membersText.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("ثبت نیروی جدید", fontWeight = FontWeight.Bold) },
+        title = { Text(if (initial == null) "ثبت نیروی جدید" else "ویرایش نیرو", fontWeight = FontWeight.Bold) },
         text = {
             Column(
                 Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
@@ -54,7 +70,7 @@ fun AddPersonDialog(onDismiss: () -> Unit, onSave: (Person) -> Unit) {
             ) {
                 OutlinedTextField(
                     value = name, onValueChange = { name = it },
-                    label = { Text("نام و نام خانوادگی") },
+                    label = { Text(if (isLeader) "نام سرشیفت" else "نام و نام خانوادگی") },
                     singleLine = true, isError = showErrors && name.isBlank()
                 )
                 FilterDropdown("وضعیت استخدامی", Employment.entries.map { it.title }, employment.title) { v ->
@@ -71,23 +87,67 @@ fun AddPersonDialog(onDismiss: () -> Unit, onSave: (Person) -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray
                 )
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("این فرد سرشیفت است", Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                    Switch(checked = isLeader, onCheckedChange = { isLeader = it })
+                }
+                if (isLeader) {
+                    OutlinedTextField(
+                        value = membersText, onValueChange = { membersText = it },
+                        label = { Text("افراد زیرمجموعه (هر نفر در یک خط)") },
+                        minLines = 3,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        if (memberNames.isEmpty()) {
+                            "همهٔ زیرمجموعه‌ها با همین وضعیت استخدامی، الگو و تاریخ شروع ثبت می‌شوند؛ بعداً هر نفر را جداگانه می‌توانید ویرایش کنید."
+                        } else {
+                            "${memberNames.size.toPersian()} نفر با همین شرایط ثبت می‌شوند."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                }
             }
         },
         confirmButton = {
             Button(onClick = {
                 if (name.isNotBlank()) {
-                    onSave(
-                        Person(
-                            id = UUID.randomUUID().toString(),
-                            name = name.trim(),
-                            workType = WorkTypes.default,
-                            employment = employment,
-                            pattern = pattern,
-                            startDate = startDate,
-                            // The cycle begins on the weekday of the chosen start date.
-                            startWeekday = ShiftEngine.persianWeekday(startDate)
-                        )
+                    // Keep the stored weekday when editing without changing the date, so the schedule does not shift.
+                    val weekday = if (initial != null && startDate == initial.startDate) {
+                        initial.startWeekday
+                    } else {
+                        ShiftEngine.persianWeekday(startDate)
+                    }
+                    val head = Person(
+                        id = initial?.id ?: UUID.randomUUID().toString(),
+                        name = name.trim(),
+                        workType = initial?.workType ?: WorkTypes.default,
+                        employment = employment,
+                        pattern = pattern,
+                        startDate = startDate,
+                        startWeekday = weekday,
+                        active = initial?.active ?: true,
+                        isLeader = isLeader,
+                        leaderId = initial?.leaderId
                     )
+                    val members = if (isLeader) {
+                        memberNames.map { n ->
+                            Person(
+                                id = UUID.randomUUID().toString(),
+                                name = n,
+                                workType = WorkTypes.default,
+                                employment = employment,
+                                pattern = pattern,
+                                startDate = startDate,
+                                startWeekday = weekday,
+                                leaderId = head.id
+                            )
+                        }
+                    } else {
+                        emptyList()
+                    }
+                    onSave(head, members)
                 } else {
                     showErrors = true
                 }

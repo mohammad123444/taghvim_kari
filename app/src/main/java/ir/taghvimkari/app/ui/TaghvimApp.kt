@@ -44,6 +44,7 @@ fun TaghvimApp(viewModel: PeopleViewModel) {
     var page by rememberSaveable { mutableStateOf(0) }
     var showAdd by rememberSaveable { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<Person?>(null) }
+    var editing by remember { mutableStateOf<Person?>(null) }
 
     Scaffold(
         containerColor = AppBackground,
@@ -62,6 +63,7 @@ fun TaghvimApp(viewModel: PeopleViewModel) {
                 1 -> PeopleScreen(
                     people = viewModel.people,
                     onAdd = { showAdd = true },
+                    onEdit = { editing = it },
                     onDelete = { pendingDelete = it }
                 )
                 else -> RangeScreen(viewModel.people)
@@ -72,11 +74,23 @@ fun TaghvimApp(viewModel: PeopleViewModel) {
     if (showAdd) {
         AddPersonDialog(
             onDismiss = { showAdd = false },
-            onSave = { viewModel.add(it); showAdd = false }
+            onSave = { head, members -> viewModel.add(head, members); showAdd = false }
         )
     }
 
-    UpdateDialog(state = viewModel.updateUi, onDismiss = viewModel::dismissUpdate)
+    editing?.let { person ->
+        AddPersonDialog(
+            initial = person,
+            onDismiss = { editing = null },
+            onSave = { head, members -> viewModel.update(head, members); editing = null }
+        )
+    }
+
+    UpdateDialog(
+        state = viewModel.updateUi,
+        onDismiss = viewModel::dismissUpdate,
+        onDownload = viewModel::downloadUpdate
+    )
 
     pendingDelete?.let { person ->
         AlertDialog(

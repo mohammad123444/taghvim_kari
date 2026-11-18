@@ -5,11 +5,14 @@ plugins {
 }
 
 // Values injected by GitHub Actions (all optional for local builds).
-val ciVersionName: String = System.getenv("APP_VERSION_NAME") ?: "1.3.0"
-val ciVersionCode: Int = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+val ciVersionName: String = System.getenv("APP_VERSION_NAME") ?: "1.4.0"
+// Derived from the version (1.4.0 -> 10400) so debug and release builds always compare correctly,
+// otherwise Android refuses the update as a "downgrade".
+val ciVersionCode: Int = ciVersionName.split(".").map { it.toIntOrNull() ?: 0 }.let {
+    it.getOrElse(0) { 0 } * 10000 + it.getOrElse(1) { 0 } * 100 + it.getOrElse(2) { 0 }
+}
 // "owner/repo" of the GitHub repository whose Releases are checked for updates.
 val updateRepo: String = (project.findProperty("updateRepo") as String?) ?: System.getenv("GITHUB_REPOSITORY") ?: ""
-val keystorePath: String? = System.getenv("KEYSTORE_PATH")
 
 android {
     namespace = "ir.taghvimkari.app"
@@ -25,21 +28,24 @@ android {
     }
 
     signingConfigs {
-        if (keystorePath != null) {
-            create("release") {
-                storeFile = file(keystorePath)
-                storePassword = System.getenv("KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("KEY_ALIAS")
-                keyPassword = System.getenv("KEY_PASSWORD") ?: System.getenv("KEYSTORE_PASSWORD")
-            }
+        // One fixed key for debug AND release builds: Android only installs an update over an
+        // installed app when both APKs are signed with the same key.
+        create("shared") {
+            storeFile = file("signing/taghvim.jks")
+            storePassword = "taghvim-shared"
+            keyAlias = "taghvim"
+            keyPassword = "taghvim-shared"
         }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("shared")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            if (keystorePath != null) signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName("shared")
         }
     }
 

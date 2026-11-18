@@ -26,7 +26,9 @@ class LocalStore(context: Context) {
                     pattern = Pattern.valueOf(o.optString("pattern", Pattern.DAY_NIGHT_REST.name)),
                     startDate = LocalDate.parse(o.getString("startDate")),
                     startWeekday = o.optInt("startWeekday", 0).coerceIn(0, 6),
-                    active = o.optBoolean("active", true)
+                    active = o.optBoolean("active", true),
+                    isLeader = o.optBoolean("isLeader", false),
+                    leaderId = o.optString("leaderId", "").ifBlank { null }
                 )
             }.getOrNull()
         }
@@ -45,6 +47,8 @@ class LocalStore(context: Context) {
                     put("startDate", p.startDate.toString())
                     put("startWeekday", p.startWeekday)
                     put("active", p.active)
+                    put("isLeader", p.isLeader)
+                    put("leaderId", p.leaderId ?: "")
                 }
             )
         }

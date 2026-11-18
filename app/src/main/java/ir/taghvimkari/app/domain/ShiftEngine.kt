@@ -35,7 +35,7 @@ object ShiftEngine {
         if (days < 0) return Shift.REST
         val week = ((days / 7) % person.pattern.cycleWeeks).toInt()
         return when (person.pattern) {
-            Pattern.DAY2_REST1 -> if (week < 2) Shift.DAY else Shift.REST
+            Pattern.DAY2_REST1, Pattern.DAY2_REST2 -> if (week < 2) Shift.DAY else Shift.REST
             Pattern.DAY_NIGHT_REST -> when (week) { 0 -> Shift.DAY; 1 -> Shift.NIGHT; else -> Shift.REST }
             Pattern.WORK_REST -> if (week == 0) Shift.WORK else Shift.REST
             Pattern.DAY_NIGHT_REST2 -> when (week) { 0 -> Shift.DAY; 1 -> Shift.NIGHT; else -> Shift.REST }
