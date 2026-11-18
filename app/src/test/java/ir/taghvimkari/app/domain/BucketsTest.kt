@@ -80,4 +80,14 @@ class BucketsTest {
             }
         }
     }
+
+    @Test fun notStartedPeopleAreSplitByRestDaysLeft() {
+        val p = person(Pattern.WORK_REST)
+        // 14 .. 8 rest days left -> first rest week
+        assertEquals(Bucket.REST_WEEK1, bucketOf(p, ShiftEngine.status(p, saturday.minusDays(14))))
+        assertEquals(Bucket.REST_WEEK1, bucketOf(p, ShiftEngine.status(p, saturday.minusDays(8))))
+        // 7 .. 1 left -> second rest week
+        assertEquals(Bucket.REST_WEEK2, bucketOf(p, ShiftEngine.status(p, saturday.minusDays(7))))
+        assertEquals(Bucket.REST_WEEK2, bucketOf(p, ShiftEngine.status(p, saturday.minusDays(1))))
+    }
 }

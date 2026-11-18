@@ -19,8 +19,9 @@ fun bucketOf(person: Person, status: DayStatus): Bucket {
         return if (status.working) Bucket.DAY else Bucket.REST
     }
     return when {
-        // Someone whose cycle has not begun yet is shown with the second rest week.
-        !status.started -> Bucket.REST_WEEK2
+        // Someone whose cycle has not begun yet is resting until it starts: 8..14 rest days left
+        // means the first rest week, 1..7 left means the second (last) one.
+        !status.started -> if (status.daysToChange >= 8) Bucket.REST_WEEK1 else Bucket.REST_WEEK2
         status.working -> if (status.shift == Shift.NIGHT) Bucket.NIGHT else Bucket.DAY
         status.restWeek == 1 -> Bucket.REST_WEEK1
         status.restWeek >= 2 -> Bucket.REST_WEEK2
