@@ -1,5 +1,8 @@
 package ir.taghvimkari.app
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -28,5 +31,29 @@ class MainActivity : ComponentActivity() {
         setContent {
             TaghvimTheme { TaghvimApp(viewModel) }
         }
+        if (savedInstanceState == null) handleIncoming(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIncoming(intent)
+    }
+
+    /** A data file opened with, or shared to, this app is offered for import (after confirmation). */
+    private fun handleIncoming(incoming: Intent?) {
+        val uri = incoming?.let { extractUri(it) } ?: return
+        viewModel.offerImport(uri)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun extractUri(i: Intent): Uri? = when (i.action) {
+        Intent.ACTION_VIEW -> i.data
+        Intent.ACTION_SEND ->
+            if (Build.VERSION.SDK_INT >= 33) {
+                i.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            } else {
+                i.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+            }
+        else -> null
     }
 }

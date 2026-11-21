@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ir.taghvimkari.app.BuildConfig
 import ir.taghvimkari.app.domain.Person
+import ir.taghvimkari.app.domain.toPersian
 import ir.taghvimkari.app.domain.toPersianDigits
 
 @Composable
@@ -87,6 +88,30 @@ fun TaghvimApp(viewModel: PeopleViewModel) {
         onDismiss = viewModel::dismissUpdate,
         onDownload = viewModel::downloadUpdate
     )
+
+    viewModel.pendingImport?.let { incoming ->
+        AlertDialog(
+            onDismissRequest = viewModel::cancelImport,
+            title = { Text("دریافت اطلاعات", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "در فایل دریافتی ${incoming.size.toPersian()} نفر هست. اطلاعات فعلی این گوشی " +
+                        "(${viewModel.people.size.toPersian()} نفر) کاملاً با آن جایگزین می‌شود. ادامه می‌دهید؟"
+                )
+            },
+            confirmButton = { TextButton(onClick = viewModel::confirmImport) { Text("جایگزین کن", fontWeight = FontWeight.Bold) } },
+            dismissButton = { TextButton(onClick = viewModel::cancelImport) { Text("انصراف") } }
+        )
+    }
+
+    viewModel.importError?.let { message ->
+        AlertDialog(
+            onDismissRequest = viewModel::dismissImportError,
+            title = { Text("فایل پذیرفته نشد", fontWeight = FontWeight.Bold) },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = viewModel::dismissImportError) { Text("باشه") } }
+        )
+    }
 
     pendingDelete?.let { person ->
         AlertDialog(

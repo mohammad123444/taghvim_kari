@@ -112,7 +112,7 @@ fun DashboardScreen(people: List<Person>) {
                     }
                 )
                 Text(
-                    "روی هر روز بزنید تا وضعیت حضور نیروها نمایش داده شود. عدد زیر هر روز، تعداد افراد حاضر است.",
+                    "روی هر روز بزنید تا وضعیت حضور نیروها نمایش داده شود. عدد زیر هر روز، تعداد افراد حاضر است. برای رفتن به ماه قبل یا بعد، تقویم را به چپ و راست بکشید یا از فلش‌های بالا استفاده کنید.",
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
                     color = Color.Gray,
                     style = MaterialTheme.typography.bodySmall

@@ -53,6 +53,9 @@ import ir.taghvimkari.app.domain.toPersian
 import java.time.LocalDate
 
 private const val MAX_DAYS = 400
+
+/** Index of Sunday in the Saturday-first week used by [ShiftEngine.persianWeekday]. */
+private const val SUNDAY = 1
 private val DayColor = Color(0xFF2E9E57)
 private val NightColor = Color(0xFF4F46C8)
 private val RestColor = Color(0xFFD9D9E6)
@@ -138,12 +141,13 @@ fun CompareScreen(people: List<Person>) {
         }
     }
 
-    // Week lengths inside the range; weeks start on Saturday, so the first and last may be partial.
+    // Week lengths inside the range. Work starts on Sundays, so the chart's dividers are drawn at each
+    // Sunday (weekday index 1); the app's calendar itself stays Saturday-first. First/last weeks may be partial.
     val weekLengths = remember(fromEpoch, toEpoch) {
         val out = ArrayList<Int>()
         var length = 0
         for (i in 0 until days.coerceAtLeast(0)) {
-            if (i > 0 && ShiftEngine.persianWeekday(from.plusDays(i.toLong())) == 0) {
+            if (i > 0 && ShiftEngine.persianWeekday(from.plusDays(i.toLong())) == SUNDAY) {
                 out.add(length)
                 length = 0
             }
@@ -252,7 +256,7 @@ fun CompareScreen(people: List<Person>) {
                                         Box(Modifier.weight(length.toFloat()).fillMaxHeight().background(kindColor(kind)))
                                     }
                                 }
-                                // A white divider at the start of every week (Saturday).
+                                // A white divider at the start of every work week (Sunday).
                                 if (days > 7) {
                                     Row(Modifier.fillMaxSize()) {
                                         weekLengths.forEachIndexed { index, length ->

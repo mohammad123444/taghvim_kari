@@ -5,11 +5,17 @@ plugins {
 }
 
 // Values injected by GitHub Actions (all optional for local builds).
-val ciVersionName: String = System.getenv("APP_VERSION_NAME") ?: "1.9.1"
+val ciVersionName: String = System.getenv("APP_VERSION_NAME") ?: "2.0.0"
 // Derived from the version (1.4.0 -> 10400) so debug and release builds always compare correctly,
 // otherwise Android refuses the update as a "downgrade".
 val ciVersionCode: Int = ciVersionName.split(".").map { it.toIntOrNull() ?: 0 }.let {
     it.getOrElse(0) { 0 } * 10000 + it.getOrElse(1) { 0 } * 100 + it.getOrElse(2) { 0 }
+}
+// Version rule: the 2nd and 3rd numbers only go from 0 to 9 (1.2.9 -> 1.3.0, 1.9.9 -> 2.0.0).
+ciVersionName.split(".").map { it.toIntOrNull() ?: 0 }.let { parts ->
+    require(parts.getOrElse(1) { 0 } <= 9 && parts.getOrElse(2) { 0 } <= 9) {
+        "Invalid version $ciVersionName: the 2nd and 3rd numbers must be 0..9 (e.g. 1.9.9 is followed by 2.0.0)."
+    }
 }
 // "owner/repo" of the GitHub repository whose Releases are checked for updates.
 val updateRepo: String = (project.findProperty("updateRepo") as String?) ?: System.getenv("GITHUB_REPOSITORY") ?: ""
@@ -66,7 +72,6 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")

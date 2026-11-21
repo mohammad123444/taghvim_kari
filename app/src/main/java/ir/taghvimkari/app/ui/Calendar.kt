@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -65,12 +67,30 @@ fun JalaliMonthCalendar(
     val length = JalaliDate.monthLength(year, month)
     val rows = (offset + length + 6) / 7
     var yearMenu by remember { mutableStateOf(false) }
+    var dragTotal by remember { mutableStateOf(0f) }
+    val goPrev = { if (month == 1) onMonthChange(year - 1, 12) else onMonthChange(year, month - 1) }
+    val goNext = { if (month == 12) onMonthChange(year + 1, 1) else onMonthChange(year, month + 1) }
 
-    Column(modifier) {
+    // Swipe to change month. The layout is right-to-left, so the next month is on the left:
+    // dragging right brings the next month in, dragging left brings the previous one back.
+    Column(
+        modifier.pointerInput(year, month) {
+            detectHorizontalDragGestures(
+                onDragStart = { dragTotal = 0f },
+                onDragEnd = {
+                    if (dragTotal > SWIPE_THRESHOLD) goNext() else if (dragTotal < -SWIPE_THRESHOLD) goPrev()
+                    dragTotal = 0f
+                },
+                onDragCancel = { dragTotal = 0f },
+                onHorizontalDrag = { change, amount ->
+                    change.consume()
+                    dragTotal += amount
+                }
+            )
+        }
+    ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = {
-                if (month == 1) onMonthChange(year - 1, 12) else onMonthChange(year, month - 1)
-            }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "ماه قبل") }
+            IconButton(onClick = { goPrev() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "ماه قبل") }
 
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 TextButton(onClick = { yearMenu = true }) {
@@ -91,9 +111,7 @@ fun JalaliMonthCalendar(
                 }
             }
 
-            IconButton(onClick = {
-                if (month == 12) onMonthChange(year + 1, 1) else onMonthChange(year, month + 1)
-            }) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "ماه بعد") }
+            IconButton(onClick = { goNext() }) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "ماه بعد") }
         }
 
         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -132,6 +150,9 @@ fun JalaliMonthCalendar(
         }
     }
 }
+
+/** Horizontal drag distance (px) that counts as a month swipe. */
+private const val SWIPE_THRESHOLD = 120f
 
 private val CELL_HEIGHT = 62.dp
 

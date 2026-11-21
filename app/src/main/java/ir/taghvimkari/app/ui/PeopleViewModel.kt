@@ -1,24 +1,23 @@
 package ir.taghvimkari.app.ui
 
 import android.app.Application
+import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import ir.taghvimkari.app.BuildConfig
-import ir.taghvimkari.app.data.BackupClient
-import ir.taghvimkari.app.data.BackupPrefs
+import ir.taghvimkari.app.data.DataExchange
 import ir.taghvimkari.app.data.LocalStore
 import ir.taghvimkari.app.data.UpdateChecker
 import ir.taghvimkari.app.data.UpdateInfo
 import ir.taghvimkari.app.data.UpdateInstaller
 import ir.taghvimkari.app.data.UpdateResult
 import ir.taghvimkari.app.domain.Person
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.json.JSONArray
+import kotlinx.coroutines.withContext
 
 sealed interface UpdateUi {
     data object Idle : UpdateUi
@@ -31,21 +30,8 @@ sealed interface UpdateUi {
     data class DownloadFailed(val info: UpdateInfo) : UpdateUi
 }
 
-/** State of the online backup shown in Settings. */
-data class BackupUi(
-    val enabled: Boolean = false,
-    val busy: Boolean = false,
-    val lastSuccess: Long = 0L,
-    val message: String? = null,
-    val isError: Boolean = false,
-    /** An older backup exists online; the user must choose before anything is overwritten. */
-    val foundExisting: Boolean = false
-)
-
 class PeopleViewModel(app: Application) : AndroidViewModel(app) {
     private val store = LocalStore(app)
-    private val backupPrefs = BackupPrefs(app)
-    private var backupJob: Job? = null
     private var checkInFlight = false
 
     var people: List<Person> by mutableStateOf(store.load())
@@ -57,110 +43,46 @@ class PeopleViewModel(app: Application) : AndroidViewModel(app) {
     /** Update checking is off when the build has no GitHub repository configured. */
     val updatesEnabled: Boolean = BuildConfig.UPDATE_REPO.isNotBlank()
 
-    var backupUi: BackupUi by mutableStateOf(BackupUi(enabled = backupPrefs.enabled, lastSuccess = backupPrefs.lastSuccess))
+    /** People received from a file, waiting for the user to confirm the replacement. */
+    var pendingImport: List<Person>? by mutableStateOf(null)
+        private set
+
+    var importError: String? by mutableStateOf(null)
         private set
 
     init {
         if (updatesEnabled) checkForUpdate(manual = false)
-        // Changes made while offline are uploaded the next time the app opens.
-        if (backupPrefs.enabled && backupPrefs.dirty) scheduleBackup()
     }
 
-    /** Every change goes through here: saved locally, then uploaded shortly after. */
     private fun commit() {
         store.save(people)
-        scheduleBackup()
     }
 
-    private fun scheduleBackup() {
-        backupPrefs.dirty = true
-        if (!backupPrefs.enabled || backupUi.foundExisting) return
-        backupJob?.cancel()
-        backupJob = viewModelScope.launch {
-            delay(1200) // several quick edits become one upload
-            uploadNow()
-        }
-    }
-
-    private suspend fun uploadNow() {
-        backupUi = backupUi.copy(busy = true)
-        val content = LocalStore.encode(people).toString()
-        BackupClient.upload(backupPrefs.token, backupPrefs.gistId.ifBlank { null }, content)
-            .onSuccess { id ->
-                backupPrefs.gistId = id
-                backupPrefs.lastSuccess = System.currentTimeMillis()
-                backupPrefs.dirty = false
-                backupUi = backupUi.copy(
-                    busy = false, lastSuccess = backupPrefs.lastSuccess,
-                    message = "پشتیبان‌گیری انجام شد.", isError = false
-                )
-            }
-            .onFailure {
-                backupUi = backupUi.copy(
-                    busy = false,
-                    message = (it.message ?: "پشتیبان‌گیری ناموفق بود.") + " دفعهٔ بعد دوباره تلاش می‌شود.",
-                    isError = true
-                )
-            }
-    }
-
-    fun connectBackup(token: String) {
-        val t = token.trim()
-        if (t.isEmpty() || backupUi.busy) return
-        backupUi = backupUi.copy(busy = true, message = null)
+    /** Reads a received data file; the data only replaces the current list after [confirmImport]. */
+    fun offerImport(uri: Uri) {
         viewModelScope.launch {
-            BackupClient.findExisting(t)
-                .onSuccess { id ->
-                    backupPrefs.token = t
-                    backupPrefs.enabled = true
-                    if (id != null) {
-                        backupPrefs.gistId = id
-                        backupUi = backupUi.copy(enabled = true, busy = false, foundExisting = true)
-                    } else {
-                        backupUi = backupUi.copy(enabled = true)
-                        uploadNow()
-                    }
-                }
-                .onFailure {
-                    backupUi = backupUi.copy(busy = false, message = it.message ?: "اتصال ناموفق بود.", isError = true)
-                }
+            runCatching {
+                withContext(Dispatchers.IO) { DataExchange.decode(DataExchange.readFile(getApplication(), uri)) }
+            }
+                .onSuccess { pendingImport = it }
+                .onFailure { importError = it.message ?: "فایل معتبر نیست." }
         }
     }
 
-    /** The user keeps the data on this phone and replaces the older online backup. */
-    fun keepCurrentData() {
-        backupUi = backupUi.copy(foundExisting = false)
-        viewModelScope.launch { uploadNow() }
-    }
-
-    fun backupNow() {
-        if (!backupPrefs.enabled || backupUi.busy) return
-        viewModelScope.launch { uploadNow() }
-    }
-
-    fun restoreBackup() {
-        if (!backupPrefs.enabled || backupUi.busy) return
-        backupUi = backupUi.copy(busy = true, message = null, foundExisting = false)
-        viewModelScope.launch {
-            BackupClient.download(backupPrefs.token, backupPrefs.gistId)
-                .mapCatching { LocalStore.decode(JSONArray(it)) }
-                .onSuccess { list ->
-                    people = list
-                    store.save(list)
-                    backupPrefs.dirty = false
-                    backupUi = backupUi.copy(busy = false, message = "اطلاعات بازیابی شد (${list.size} نفر).", isError = false)
-                }
-                .onFailure {
-                    backupUi = backupUi.copy(busy = false, message = it.message ?: "بازیابی ناموفق بود.", isError = true)
-                }
+    fun confirmImport() {
+        pendingImport?.let {
+            people = it
+            commit()
         }
+        pendingImport = null
     }
 
-    fun disableBackup() {
-        backupJob?.cancel()
-        backupPrefs.enabled = false
-        backupPrefs.token = ""
-        backupUi = BackupUi()
+    fun cancelImport() {
+        pendingImport = null
+    }
+
+    fun dismissImportError() {
+        importError = null
     }
 
     /** Registers [head] and all [members] (who share the head's conditions) in one go. */
